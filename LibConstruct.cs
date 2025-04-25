@@ -8,7 +8,10 @@ namespace LibConstruct
   {
     public override void OnLoaded(ContentHandler contentHandler)
     {
-      UnityEngine.Debug.Log("LibConstruct Loaded!");
+      base.OnLoaded(contentHandler);
+
+      var harmony = new Harmony("LibConstruct");
+      harmony.PatchAll();
     }
   }
 }

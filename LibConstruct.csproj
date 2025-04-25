@@ -3,6 +3,7 @@
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
         <TargetFramework>net48</TargetFramework>
+        <LangVersion>9.0</LangVersion>
         <OutputPath>bin\Debug</OutputPath>
         <ModName>LibConstruct</ModName>
         <UserDir>$(HOMEDRIVE)$(HOMEPATH)</UserDir>
