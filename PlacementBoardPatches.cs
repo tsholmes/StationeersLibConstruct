@@ -144,7 +144,7 @@ namespace LibConstruct
     static void OnAssignedReferencePostfix(Structure __instance, Vector3 __state)
     {
       // undo the overriden position
-      if (__instance is PlacementBoardStructure)
+      if (__instance is IPlacementBoardStructure)
         __instance.ThingTransformPosition = __state;
     }
     [HarmonyPatch(nameof(Structure.RebuildGridState)), HarmonyPrefix]
@@ -158,7 +158,7 @@ namespace LibConstruct
     static void RebuildGridStatePostfix(Structure __instance, Vector3 __state)
     {
       // undo the overriden position
-      if (__instance is PlacementBoardStructure)
+      if (__instance is IPlacementBoardStructure)
         __instance.ThingTransformPosition = __state;
     }
   }
@@ -168,7 +168,7 @@ namespace LibConstruct
   {
     // this is only needed if we end up adding board pipes
     [HarmonyPatch(nameof(SmallGrid.RegisterGridUpdate)), HarmonyPrefix]
-    static bool RegisterGridUpdate(SmallGrid __instance) => __instance is not PlacementBoardStructure;
+    static bool RegisterGridUpdate(SmallGrid __instance) => __instance is not IPlacementBoardStructure;
   }
 
   [HarmonyPatch(typeof(GridController))]
@@ -177,7 +177,7 @@ namespace LibConstruct
     [HarmonyPatch(nameof(GridController.Register)), HarmonyPrefix]
     static bool Register(Structure structure)
     {
-      if (structure is not PlacementBoardStructure) return true;
+      if (structure is not IPlacementBoardStructure) return true;
       GridController.AllStructures.Add(structure);
       structure.OnRegistered(null);
       return false;
@@ -186,7 +186,7 @@ namespace LibConstruct
     [HarmonyPatch(nameof(GridController.Deregister)), HarmonyPrefix]
     static bool Deregister(Structure structure)
     {
-      if (structure is not PlacementBoardStructure)
+      if (structure is not IPlacementBoardStructure)
         return true;
       GridController.AllStructures.Remove(structure);
       structure.OnDeregistered();

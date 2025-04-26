@@ -93,32 +93,31 @@ namespace LibConstruct
       return this.Origin.position + (vecGrid.x * this.Origin.right + vecGrid.y * this.Origin.up + vecGrid.z * this.Origin.forward) * this.GridSize;
     }
 
-    public abstract PlacementBoardStructure EquivalentStructure(Structure structure);
+    public abstract IPlacementBoardStructure EquivalentStructure(Structure structure);
 
     public static void UseMultiConstructorBoard(Thing player, int activeHandSlotId, int inactiveHandSlotId, Vector3 targetLocation, Quaternion targetRotation, bool authoringMode, ulong steamId, Thing spawnPrefab)
     {
       var constructor = player.Slots[activeHandSlotId].Get<MultiConstructor>();
-      var offhandItem = player.Slots[inactiveHandSlotId].Get<Item>();
       if (!constructor)
         constructor = Prefab.Find<MultiConstructor>(spawnPrefab.PrefabHash);
       if (!constructor)
         return;
 
-      var prefab = Prefab.Find<PlacementBoardStructure>(InventoryManager.ConstructionCursor.PrefabHash);
-      if (prefab == null)
+      var prefabStructure = Prefab.Find<Structure>(InventoryManager.ConstructionCursor.PrefabHash);
+      if (prefabStructure is not IPlacementBoardStructure prefab)
         return;
 
-      var entryQuantity = prefab.BuildStates[0].Tool.EntryQuantity;
+      var entryQuantity = prefabStructure.BuildStates[0].Tool.EntryQuantity;
       if (!authoringMode && !constructor.OnUseItem(entryQuantity, null))
         return;
 
       var create = new CreateBoardStructureInstance(prefab, CursorBoard, CursorBoard.WorldToGrid(targetLocation), targetRotation, steamId);
-      if (constructor.PaintableMaterial != null && prefab.PaintableMaterial != null)
+      if (constructor.PaintableMaterial != null && prefabStructure.PaintableMaterial != null)
         create.CustomColor = constructor.CustomColor.Index;
 
       if (GameManager.RunSimulation)
       {
-        var structure = Thing.Create<PlacementBoardStructure>(create.Prefab, create.WorldPosition, create.Rotation);
+        var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.Prefab, create.WorldPosition, create.Rotation);
         structure.Board = create.Board;
         structure.SetStructureData(create.Rotation, create.OwnerClientId, create.Position, create.CustomColor);
       }

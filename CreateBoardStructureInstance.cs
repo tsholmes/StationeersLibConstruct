@@ -7,14 +7,14 @@ namespace LibConstruct
   public class CreateBoardStructureInstance
   {
     public PlacementBoard Board;
-    public PlacementBoardStructure Prefab;
+    public IPlacementBoardStructure Prefab;
     public Grid3 Position;
     public Quaternion Rotation;
     public int CustomColor = -1;
     public ulong OwnerClientId;
 
     public CreateBoardStructureInstance(
-      PlacementBoardStructure prefabToCreate,
+      IPlacementBoardStructure prefabToCreate,
       PlacementBoard board,
       Grid3 position,
       Quaternion rotation,
