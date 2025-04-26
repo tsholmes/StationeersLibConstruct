@@ -54,6 +54,7 @@ namespace LibConstruct
     [HarmonyPatch("UpdatePlacement", typeof(Structure)), HarmonyPrefix]
     static bool UpdatePlacement(ref Structure structure)
     {
+      PlacementBoard.PlacingOnBoard = false;
       if (PlacementBoard.CursorBoard != null)
       {
         var board = PlacementBoard.CursorBoard;
@@ -70,11 +71,32 @@ namespace LibConstruct
           InventoryManager.ConstructionCursor = cursor;
           cursor.gameObject.SetActive(true);
         }
+        PlacementBoard.PlacingOnBoard = true;
         cursor.transform.SetPositionAndRotation(
           board.GridToWorld(PlacementBoard.CursorGrid),
           board.Origin.localRotation
         );
         InventoryManager.CurrentRotation = cursor.ThingTransformRotation;
+        return false;
+      }
+      return true;
+    }
+
+    [HarmonyPatch("UsePrimaryComplete"), HarmonyPrefix]
+    static bool UsePrimaryComplete(InventoryManager __instance)
+    {
+      if (PlacementBoard.PlacingOnBoard && __instance.ConstructionPanel.IsVisible)
+      {
+        PlacementBoard.UseMultiConstructorBoard(
+          InventoryManager.Parent,
+          __instance.ActiveHand.SlotId,
+          __instance.InactiveHand.SlotId,
+          InventoryManager.ConstructionCursor.ThingTransformPosition,
+          InventoryManager.ConstructionCursor.ThingTransformRotation,
+          InventoryManager.IsAuthoringMode,
+          InventoryManager.ParentBrain.ClientId,
+          InventoryManager.SpawnPrefab
+        );
         return false;
       }
       return true;
@@ -107,5 +129,47 @@ namespace LibConstruct
       matcher.Insert(CodeInstruction.Call(() => PlacementBoard.FindCursorBoard()));
       return matcher.Instructions();
     }
+  }
+
+  [HarmonyPatch(typeof(Structure))]
+  static class StructurePatch
+  {
+    [HarmonyPatch(nameof(Structure.OnAssignedReference)), HarmonyPrefix]
+    static void OnAssignedReferencePrefix(Structure __instance, out Vector3 __state)
+    {
+      __state = __instance.ThingTransformPosition;
+    }
+
+    [HarmonyPatch(nameof(Structure.OnAssignedReference)), HarmonyPostfix]
+    static void OnAssignedReferencePostfix(Structure __instance, Vector3 __state)
+    {
+      // undo the overriden position
+      if (__instance is PlacementBoardStructure)
+        __instance.ThingTransformPosition = __state;
+    }
+    [HarmonyPatch(nameof(Structure.RebuildGridState)), HarmonyPrefix]
+    static void RebuildGridStatePrefix(Structure __instance, out Vector3 __state)
+    {
+      // TODO: is this what we want to do here?
+      __state = __instance.ThingTransformPosition;
+    }
+
+    [HarmonyPatch(nameof(Structure.RebuildGridState)), HarmonyPostfix]
+    static void RebuildGridStatePostfix(Structure __instance, Vector3 __state)
+    {
+      // undo the overriden position
+      if (__instance is PlacementBoardStructure)
+        __instance.ThingTransformPosition = __state;
+    }
+  }
+
+  [HarmonyPatch(typeof(GridController))]
+  static class GridControllerPatch
+  {
+    [HarmonyPatch(nameof(GridController.Register)), HarmonyPrefix]
+    static bool Register(Structure structure) => structure is not PlacementBoardStructure;
+
+    [HarmonyPatch(nameof(GridController.Deregister)), HarmonyPrefix]
+    static bool Deregister(Structure structure) => structure is not PlacementBoardStructure;
   }
 }

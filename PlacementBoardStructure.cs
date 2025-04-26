@@ -6,6 +6,7 @@ namespace LibConstruct
   public abstract class PlacementBoardStructure : Structure
   {
     // TODO
+    public PlacementBoard Board;
 
     public override void Awake()
     {

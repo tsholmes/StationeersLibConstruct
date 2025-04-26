@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Assets.Scripts;
 using Assets.Scripts.GridSystem;
+using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
@@ -17,6 +18,7 @@ namespace LibConstruct
     public static readonly Dictionary<BoxCollider, PlacementBoard> BoardColliderLookup = new();
     public static PlacementBoard CursorBoard;
     public static Grid3 CursorGrid;
+    public static bool PlacingOnBoard = false;
 
     public static void FindCursorBoard()
     {
@@ -92,5 +94,38 @@ namespace LibConstruct
     }
 
     public abstract PlacementBoardStructure EquivalentStructure(Structure structure);
+
+    public static void UseMultiConstructorBoard(Thing player, int activeHandSlotId, int inactiveHandSlotId, Vector3 targetLocation, Quaternion targetRotation, bool authoringMode, ulong steamId, Thing spawnPrefab)
+    {
+      var constructor = player.Slots[activeHandSlotId].Get<MultiConstructor>();
+      var offhandItem = player.Slots[inactiveHandSlotId].Get<Item>();
+      if (!constructor)
+        constructor = Prefab.Find<MultiConstructor>(spawnPrefab.PrefabHash);
+      if (!constructor)
+        return;
+
+      var prefab = Prefab.Find<PlacementBoardStructure>(InventoryManager.ConstructionCursor.PrefabHash);
+      if (prefab == null)
+        return;
+
+      var entryQuantity = prefab.BuildStates[0].Tool.EntryQuantity;
+      if (!authoringMode && !constructor.OnUseItem(entryQuantity, null))
+        return;
+
+      var create = new CreateBoardStructureInstance(prefab, CursorBoard, CursorBoard.WorldToGrid(targetLocation), targetRotation, steamId);
+      if (constructor.PaintableMaterial != null && prefab.PaintableMaterial != null)
+        create.CustomColor = constructor.CustomColor.Index;
+
+      if (GameManager.RunSimulation)
+      {
+        var structure = Thing.Create<PlacementBoardStructure>(create.Prefab, create.WorldPosition, create.Rotation);
+        structure.Board = create.Board;
+        structure.SetStructureData(create.Rotation, create.OwnerClientId, create.Position, create.CustomColor);
+      }
+      else
+      {
+        // TODO: networking
+      }
+    }
   }
 }
