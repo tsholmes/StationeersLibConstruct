@@ -163,13 +163,34 @@ namespace LibConstruct
     }
   }
 
+  [HarmonyPatch(typeof(SmallGrid))]
+  static class SmallGridPatch
+  {
+    // this is only needed if we end up adding board pipes
+    [HarmonyPatch(nameof(SmallGrid.RegisterGridUpdate)), HarmonyPrefix]
+    static bool RegisterGridUpdate(SmallGrid __instance) => __instance is not PlacementBoardStructure;
+  }
+
   [HarmonyPatch(typeof(GridController))]
   static class GridControllerPatch
   {
     [HarmonyPatch(nameof(GridController.Register)), HarmonyPrefix]
-    static bool Register(Structure structure) => structure is not PlacementBoardStructure;
+    static bool Register(Structure structure)
+    {
+      if (structure is not PlacementBoardStructure) return true;
+      GridController.AllStructures.Add(structure);
+      structure.OnRegistered(null);
+      return false;
+    }
 
     [HarmonyPatch(nameof(GridController.Deregister)), HarmonyPrefix]
-    static bool Deregister(Structure structure) => structure is not PlacementBoardStructure;
+    static bool Deregister(Structure structure)
+    {
+      if (structure is not PlacementBoardStructure)
+        return true;
+      GridController.AllStructures.Remove(structure);
+      structure.OnDeregistered();
+      return false;
+    }
   }
 }

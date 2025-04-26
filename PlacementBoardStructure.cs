@@ -3,7 +3,7 @@ using Assets.Scripts.Objects;
 
 namespace LibConstruct
 {
-  public abstract class PlacementBoardStructure : Structure
+  public abstract class PlacementBoardStructure : SmallGrid
   {
     // TODO
     public PlacementBoard Board;
