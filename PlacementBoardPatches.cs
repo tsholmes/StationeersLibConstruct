@@ -54,6 +54,8 @@ namespace LibConstruct
     [HarmonyPatch("UpdatePlacement", typeof(Structure)), HarmonyPrefix]
     static bool UpdatePlacement(ref Structure structure)
     {
+      var currentRotation = PlacementBoard.CursorRotation;
+      PlacementBoard.CursorRotation = 0;
       PlacementBoard.PlacingOnBoard = false;
       if (PlacementBoard.CursorBoard != null)
       {
@@ -71,15 +73,53 @@ namespace LibConstruct
           InventoryManager.ConstructionCursor = cursor;
           cursor.gameObject.SetActive(true);
         }
+
+        var rotOffset = RotationOffset();
+        currentRotation = (currentRotation + rotOffset + 4) % 4;
+
+        var rot = board.Origin.localRotation * Quaternion.AngleAxis(90 * (float)currentRotation, Vector3.forward);
+
         PlacementBoard.PlacingOnBoard = true;
         cursor.transform.SetPositionAndRotation(
           board.GridToWorld(PlacementBoard.CursorGrid),
-          board.Origin.localRotation
+          rot
         );
         InventoryManager.CurrentRotation = cursor.ThingTransformRotation;
+        PlacementBoard.CursorRotation = currentRotation;
         return false;
       }
       return true;
+    }
+
+    // private in InventoryManager and not worth reflection
+    static int RotateBlueprintHash = Animator.StringToHash("RotateBlueprint");
+
+    static bool isRotating = false;
+    static int RotationOffset()
+    {
+      var offset = 0;
+
+      var rotateBtnDown = KeyManager.GetButton(KeyMap.QuantityModifier);
+      if (rotateBtnDown)
+      {
+        if (!isRotating) offset++;
+        offset += InventoryManager.Instance.newScrollData switch { > 0 => 3, < 0 => 1, _ => 0 };
+      }
+      else if (KeyManager.GetButtonUp(KeyMap.RotateRollRight))
+      {
+        offset++;
+      }
+      else if (KeyManager.GetButtonUp(KeyMap.RotateRollLeft))
+      {
+        offset += 3;
+      }
+      isRotating = rotateBtnDown;
+
+      offset &= 3;
+
+      if (offset != 0)
+        UIAudioManager.Play(RotateBlueprintHash);
+      return offset;
     }
 
     [HarmonyPatch("UsePrimaryComplete"), HarmonyPrefix]

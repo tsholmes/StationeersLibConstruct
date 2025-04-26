@@ -18,6 +18,7 @@ namespace LibConstruct
     public static readonly Dictionary<BoxCollider, PlacementBoard> BoardColliderLookup = new();
     public static PlacementBoard CursorBoard;
     public static Grid3 CursorGrid;
+    public static int CursorRotation;
     public static bool PlacingOnBoard = false;
 
     public static void FindCursorBoard()
