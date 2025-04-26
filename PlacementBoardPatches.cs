@@ -66,10 +66,14 @@ namespace LibConstruct
         constructionCursors.TryGetValue(boardStructure.name, out var cursor);
         if (cursor == null)
           return true;
+        if (cursor is not IPlacementBoardStructure boardCursor)
+          return true; // this really shouldn't be possible
         if (cursor != InventoryManager.ConstructionCursor)
         {
           if (InventoryManager.ConstructionCursor != null)
             InventoryManager.ConstructionCursor.gameObject.SetActive(false);
+          if (InventoryManager.ConstructionCursor is IPlacementBoardStructure prevCursor)
+            prevCursor.Board = null;
           InventoryManager.ConstructionCursor = cursor;
           cursor.gameObject.SetActive(true);
         }
@@ -80,6 +84,7 @@ namespace LibConstruct
         var rot = board.Origin.localRotation * Quaternion.AngleAxis(90 * (float)currentRotation, Vector3.forward);
 
         PlacementBoard.PlacingOnBoard = true;
+        boardCursor.Board = board;
         cursor.transform.SetPositionAndRotation(
           board.GridToWorld(PlacementBoard.CursorGrid),
           rot
@@ -130,7 +135,6 @@ namespace LibConstruct
         PlacementBoard.UseMultiConstructorBoard(
           InventoryManager.Parent,
           __instance.ActiveHand.SlotId,
-          __instance.InactiveHand.SlotId,
           InventoryManager.ConstructionCursor.ThingTransformPosition,
           InventoryManager.ConstructionCursor.ThingTransformRotation,
           InventoryManager.IsAuthoringMode,
@@ -201,6 +205,17 @@ namespace LibConstruct
       if (__instance is IPlacementBoardStructure)
         __instance.ThingTransformPosition = __state;
     }
+
+    [HarmonyPatch(nameof(Structure.CanConstruct)), HarmonyPrefix]
+    static bool CanConstruct(Structure __instance, ref CanConstructInfo __result)
+    {
+      if (__instance is IPlacementBoardStructure)
+      {
+        __result = CanConstructInfo.ValidPlacement;
+        return false;
+      }
+      return true;
+    }
   }
 
   [HarmonyPatch(typeof(SmallGrid))]
@@ -209,6 +224,17 @@ namespace LibConstruct
     // this is only needed if we end up adding board pipes
     [HarmonyPatch(nameof(SmallGrid.RegisterGridUpdate)), HarmonyPrefix]
     static bool RegisterGridUpdate(SmallGrid __instance) => __instance is not IPlacementBoardStructure;
+
+    [HarmonyPatch(nameof(SmallGrid.CanConstruct)), HarmonyPrefix]
+    static bool CanConstruct(SmallGrid __instance, ref CanConstructInfo __result)
+    {
+      if (__instance is IPlacementBoardStructure)
+      {
+        __result = CanConstructInfo.ValidPlacement;
+        return false;
+      }
+      return true;
+    }
   }
 
   [HarmonyPatch(typeof(GridController))]
