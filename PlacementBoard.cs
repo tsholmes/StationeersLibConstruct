@@ -95,17 +95,16 @@ namespace LibConstruct
 
     public IEnumerable<Grid3> BoundsGrids(Transform transform, Bounds bounds)
     {
-      var minpt = this.WorldToGrid(transform.TransformPoint(bounds.min));
-      var maxpt = this.WorldToGrid(transform.TransformPoint(bounds.max));
-      if (minpt.x > maxpt.x)
-        (minpt.x, maxpt.x) = (maxpt.x, minpt.x);
-      if (minpt.y > maxpt.y)
-        (minpt.y, maxpt.y) = (maxpt.y, minpt.y);
+      var ptA = this.WorldToGrid(transform.TransformPoint(bounds.min));
+      var ptB = this.WorldToGrid(transform.TransformPoint(bounds.max));
+      var minpt = new Grid3() { x = Math.Min(ptA.x, ptB.x), y = Math.Min(ptA.y, ptB.y) };
+      var maxpt = new Grid3() { x = Math.Max(ptA.x, ptB.x), y = Math.Max(ptA.y, ptB.y) };
       for (var x = minpt.x; x <= maxpt.x; x += 10)
         for (var y = minpt.y; y <= maxpt.y; y += 10)
         {
           var grid = new Grid3() { x = x, y = y, z = 0 };
           var local = transform.InverseTransformPoint(this.GridToWorld(grid));
+          local.z = bounds.center.z; // we only care about xy bounds, so set z to be always inside
           if (bounds.Contains(local))
             yield return grid;
         }
