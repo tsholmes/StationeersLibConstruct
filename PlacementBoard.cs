@@ -5,13 +5,13 @@ using System.Linq;
 using Assets.Scripts;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
 
 namespace LibConstruct
 {
-  // TODO: IReferencable?
   public abstract class PlacementBoard
   {
     private static float MaxCursorDistance = (float)Math.Sqrt(8f) * 0.6f;
@@ -41,9 +41,16 @@ namespace LibConstruct
     }
 
     private static long NextID;
+    public static bool Loading;
     private static Dictionary<long, IBoardRef> LoadingRefs = new();
-    public static BoardRef<T> LoadRef<T>(long id) where T : PlacementBoard, new()
+    public static BoardRef<T> LoadRef<T>(long id, long primaryHostId) where T : PlacementBoard, new()
     {
+      if (!Loading)
+      {
+        // if we aren't loading, this is being called for a newly created object on a client.
+        // in that case the primary host should already have the board created
+        return new BoardRef<T> { Board = (T)FindExisting(id, primaryHostId) };
+      }
       if (id >= NextID)
         NextID = id + 1;
       if (!LoadingRefs.TryGetValue(id, out var iref))
@@ -54,16 +61,35 @@ namespace LibConstruct
       return (BoardRef<T>)iref;
     }
 
-    public static void RegisterLoading(IPlacementBoardStructure structure, long boardID)
+    public static PlacementBoard FindExisting(long id, long primaryHostId)
     {
-      // board elements are ordered after the primary host so the ref should always be here
-      var iref = LoadingRefs[boardID];
-      iref.Board.AwaitingRegister.Add(structure);
+      var host = Thing.Find<IPlacementBoardHost>(primaryHostId);
+      foreach (var board in host.GetPlacementBoards())
+        if (board?.ID == id)
+          return board;
+      throw new Exception($"could not find PlacementBoard {id} on host {primaryHostId}");
+    }
+
+    public static void RegisterLoading(IPlacementBoardStructure structure, long boardID, long primaryHostId)
+    {
+      if (Loading)
+      {
+        // board elements are ordered after the primary host so the ref should always be here
+        var iref = LoadingRefs[boardID];
+        iref.Board.AwaitingRegister.Add(structure);
+      }
+      else
+      {
+        // if we aren't loading, this is a newly created object on a client and we should just register it directly
+        var board = FindExisting(boardID, primaryHostId);
+        board.Register(structure);
+      }
     }
 
     public static void StartLoad()
     {
       LoadingRefs.Clear();
+      Loading = true;
     }
     public static void FinishLoad()
     {
@@ -74,6 +100,7 @@ namespace LibConstruct
         iref.Board.AwaitingRegister.Clear();
       }
       LoadingRefs.Clear();
+      Loading = false;
     }
 
     protected List<IPlacementBoardHost> Hosts = new();
@@ -101,6 +128,11 @@ namespace LibConstruct
     }
     protected virtual void InitializeSaveData(ref PlacementBoardSaveData saveData) { }
     public virtual void DeserializeSave(PlacementBoardSaveData saveData) { }
+
+    public virtual void SerializeOnJoin(RocketBinaryWriter writer) { }
+    public virtual void DeserializeOnJoin(RocketBinaryReader reader) { }
+    public virtual void BuildUpdate(RocketBinaryWriter writer) { }
+    public virtual void ProcessUpdate(RocketBinaryReader reader) { }
 
     public void AddHost(IPlacementBoardHost host)
     {
@@ -137,14 +169,19 @@ namespace LibConstruct
         return;
       this.Colliders.Remove(collider);
       BoardColliderLookup.Remove(collider);
+      var toRemove = new HashSet<IPlacementBoardStructure>();
       foreach (var cell in this.BoundsCells(collider.transform, ColliderLocalBounds(collider), false))
       {
         if (!cell.ColliderDeref())
         {
-          // TODO: destroy cell structure?
+          if (cell.Structure != null)
+            toRemove.Add(cell.Structure);
           this.Cells.Remove(cell.Position);
         }
       }
+      if (GameManager.RunSimulation)
+        foreach (var structure in toRemove)
+          OnServer.Destroy((Thing)structure);
     }
 
     public void Register(IPlacementBoardStructure boardStructure)
@@ -157,24 +194,32 @@ namespace LibConstruct
       boardStructure.Transform.position = this.GridToWorld(grid);
       var cells = this.BoundsCells(boardStructure.Transform, structure.Bounds).ToArray();
       foreach (var cell in cells)
-      {
         cell.Structure = boardStructure;
-      }
       boardStructure.BoardCells = cells;
       this.Structures.Add(boardStructure);
+      this.OnStructureRegistered(boardStructure);
+      foreach (var host in this.Hosts)
+        host.OnBoardStructureRegistered(this, boardStructure);
     }
 
     public void Deregister<T>(T structure) where T : Structure, IPlacementBoardStructure
     {
       if (structure.Board != this || !this.Structures.Contains(structure))
         return;
+      this.OnStructureDeregistered(structure);
+      foreach (var host in this.Hosts)
+        host.OnBoardStructureDeregistered(this, structure);
       foreach (var cell in structure.BoardCells)
-      {
         cell.Structure = null;
-      }
       structure.BoardCells = null;
       this.Structures.Remove(structure);
     }
+
+    // These are overridable methods to handle structures being added/removed
+    // OnStructureRegistered is called *after* the structure is added and its cells registered
+    // OnStructureDeregistered is called *before* the structure is removed and its cells cleared
+    public virtual void OnStructureRegistered(IPlacementBoardStructure structure) { }
+    public virtual void OnStructureDeregistered(IPlacementBoardStructure structure) { }
 
     private static Bounds ColliderLocalBounds(BoxCollider collider) => new Bounds(collider.center, collider.size);
 
@@ -243,25 +288,32 @@ namespace LibConstruct
       if (prefabStructure is not IPlacementBoardStructure prefab)
         return;
 
-      var entryQuantity = prefabStructure.BuildStates[0].Tool.EntryQuantity;
-      if (!authoringMode && !constructor.OnUseItem(entryQuantity, null))
-        return;
-
-      var create = new CreateBoardStructureInstance(prefab, CursorBoard, CursorBoard.WorldToGrid(targetLocation), targetRotation, steamId);
+      var create = new CreateBoardStructureInstance(
+        constructor,
+        prefab,
+        CursorBoard,
+        CursorBoard.WorldToGrid(targetLocation),
+        targetRotation,
+        steamId,
+        authoringMode
+      );
       if (constructor.PaintableMaterial != null && prefabStructure.PaintableMaterial != null)
         create.CustomColor = constructor.CustomColor.Index;
 
       if (GameManager.RunSimulation)
         CreateBoardStructure(create);
       else
-      {
-        // TODO: networking
-      }
+        NetworkClient.SendToServer(new CreateBoardStructureMessage(create));
     }
 
     public static void CreateBoardStructure(CreateBoardStructureInstance create)
     {
-      var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.Prefab, create.WorldPosition, create.Rotation);
+      var prefabStructure = (Structure)create.StructurePrefab;
+      var entryQuantity = prefabStructure.BuildStates[0].Tool.EntryQuantity;
+      if (!create.AuthoringMode && !create.Constructor.OnUseItem(entryQuantity, null))
+        return;
+
+      var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.StructurePrefab, create.WorldPosition, create.Rotation);
       structure.SetStructureData(create.Rotation, create.OwnerClientId, create.Position, create.CustomColor);
       create.Board.Register(structure);
     }

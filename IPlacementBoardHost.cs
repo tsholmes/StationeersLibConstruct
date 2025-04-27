@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Assets.Scripts;
 using Assets.Scripts.GridSystem;
+using Assets.Scripts.Networking;
 using UnityEngine;
 
 namespace LibConstruct
@@ -14,6 +15,12 @@ namespace LibConstruct
 
     public IEnumerable<BoxCollider> CollidersForBoard(PlacementBoard board);
     public IEnumerable<PlacementBoard> GetPlacementBoards();
+
+    // These are hooks for the host to handle structures being added/remove from a board it is hosting
+    // OnBoardStructureRegistered is called *after* the structure is added and its cells registered
+    // OnBoardStructureDeregistered is called *before* the structure is removed and its cells cleared
+    public void OnBoardStructureRegistered(PlacementBoard board, IPlacementBoardStructure structure);
+    public void OnBoardStructureDeregistered(PlacementBoard board, IPlacementBoardStructure structure);
   }
 
   // Host needs a BoardRef member for each hosted board
@@ -58,7 +65,7 @@ namespace LibConstruct
         boardRef = null;
         return;
       }
-      boardRef = PlacementBoard.LoadRef<T>(saveData.BoardId);
+      boardRef = PlacementBoard.LoadRef<T>(saveData.BoardId, saveData.PrimaryHostId);
       if (host.ReferenceId != saveData.PrimaryHostId)
         return;
       boardRef.Board = new()
@@ -66,8 +73,8 @@ namespace LibConstruct
         ID = saveData.BoardId,
         Origin = origin,
       };
-      boardRef.Board.DeserializeSave(saveData.BoardSaveData);
       boardRef.Board.AddHost(host);
+      boardRef.Board.DeserializeSave(saveData.BoardSaveData);
     }
 
     // call this in OnFinishedLoad for each hosted board
@@ -86,11 +93,56 @@ namespace LibConstruct
     // call this in OnRegistered for each hosted board
     public static void OnRegisteredBoard<T>(IPlacementBoardHost host, ref BoardRef<T> boardRef, Transform origin) where T : PlacementBoard, new()
     {
-      if (GameManager.GameState == GameState.Loading)
+      if (GameManager.GameState == GameState.Loading || GameManager.GameState == GameState.Joining)
         return;
-      // TODO: check GameManager.RunSimulation here?
       boardRef = new BoardRef<T> { Board = new() { Origin = origin } };
       boardRef.Board.AddHost(host);
+    }
+
+    // call this in SerializeOnJoin for each hosted board
+    public static void SerializeBoardOnJoin<T>(RocketBinaryWriter writer, IPlacementBoardHost host, T board) where T : PlacementBoard, new()
+    {
+      writer.WriteInt64(board.ID);
+      writer.WriteInt64(board.PrimaryHost.ReferenceId);
+      if (board.PrimaryHost == host)
+        board.SerializeOnJoin(writer);
+    }
+
+    // call this in DeserializeOnJoin for each hosted board. make sure its called in the same order as SerializeOnJoin
+    public static void DeserializeBoardOnJoin<T>(RocketBinaryReader reader, IPlacementBoardHost host, out BoardRef<T> boardRef, Transform origin) where T : PlacementBoard, new()
+    {
+      var id = reader.ReadInt64();
+      var hostId = reader.ReadInt64();
+
+      // if we aren't loading, the primary host needs to just create the board and not lookup a ref
+      if (PlacementBoard.Loading || host.ReferenceId != hostId)
+        boardRef = PlacementBoard.LoadRef<T>(id, hostId);
+      else
+        boardRef = new();
+      if (host.ReferenceId != hostId)
+        return;
+      boardRef.Board = new()
+      {
+        ID = id,
+        Origin = origin,
+      };
+      boardRef.Board.AddHost(host);
+      boardRef.Board.DeserializeOnJoin(reader);
+    }
+
+    // BuildBoardUpdate and ProcessBoardUpdate exist only as helpers to ensure state is only sent from the primary host
+    // The caller is responsible for determing when to call these (based on their NetworkUpdateFlags or other state)
+    // The base PlacementBoard has no state that needs network updates, so these are only needed for custom board state
+    // If the board does not span multiple hosts, it will likely be easier to just hold the state in the host
+    public static void BuildBoardUpdate<T>(RocketBinaryWriter writer, IPlacementBoardHost host, T board) where T : PlacementBoard, new()
+    {
+      if (host == board.PrimaryHost)
+        board.BuildUpdate(writer);
+    }
+    public static void ProcessBoardUpdate<T>(RocketBinaryReader reader, IPlacementBoardHost host, T board) where T : PlacementBoard, new()
+    {
+      if (host == board.PrimaryHost)
+        board.ProcessUpdate(reader);
     }
   }
 }

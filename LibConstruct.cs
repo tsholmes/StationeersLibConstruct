@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Assets.Scripts.Serialization;
-using HarmonyLib;
+﻿using HarmonyLib;
 using StationeersMods.Interface;
 
 namespace LibConstruct
@@ -15,16 +12,6 @@ namespace LibConstruct
 
       var harmony = new Harmony("LibConstruct");
       harmony.PatchAll();
-    }
-  }
-
-  [HarmonyPatch]
-  static class SaveDataPatch
-  {
-    [HarmonyPatch(typeof(XmlSaveLoad), nameof(XmlSaveLoad.AddExtraTypes)), HarmonyPrefix]
-    static void AddExtraTypes(ref List<Type> extraTypes)
-    {
-      // TODO
     }
   }
 }

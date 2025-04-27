@@ -27,6 +27,8 @@ namespace LibConstruct
   public class PlacementBoardStructureSaveData
   {
     [XmlElement]
-    public long BoardID;
+    public long BoardId;
+    [XmlElement]
+    public long PrimaryHostId;
   }
 }

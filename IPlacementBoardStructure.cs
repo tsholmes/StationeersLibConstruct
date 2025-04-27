@@ -1,8 +1,8 @@
 
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Localization2;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
 
 namespace LibConstruct
@@ -48,14 +48,34 @@ namespace LibConstruct
       structure.Board.Deregister(structure);
     }
 
+    // TODO: should save data include Grid position & rotation angle, and just recalculate position+rotation on load?
     public static PlacementBoardStructureSaveData SerializeSave(IPlacementBoardStructure structure)
     {
-      return new PlacementBoardStructureSaveData { BoardID = structure.Board.ID };
+      return new PlacementBoardStructureSaveData
+      {
+        BoardId = structure.Board.ID,
+        PrimaryHostId = structure.Board.PrimaryHost.ReferenceId,
+      };
     }
 
     public static void DeserializeSave(IPlacementBoardStructure structure, PlacementBoardStructureSaveData saveData)
     {
-      PlacementBoard.RegisterLoading(structure, saveData.BoardID);
+      PlacementBoard.RegisterLoading(structure, saveData.BoardId, saveData.PrimaryHostId);
     }
+
+    public static void SerializeOnJoin(RocketBinaryWriter writer, IPlacementBoardStructure structure)
+    {
+      writer.WriteInt64(structure.Board.ID);
+      writer.WriteInt64(structure.Board.PrimaryHost.ReferenceId);
+    }
+
+    public static void DeserializeOnJoin(RocketBinaryReader reader, IPlacementBoardStructure structure)
+    {
+      var boardId = reader.ReadInt64();
+      var hostId = reader.ReadInt64();
+      PlacementBoard.RegisterLoading(structure, boardId, hostId);
+    }
+
+    // TODO: do we need BuildUpdate/ProcessUpdate?
   }
 }

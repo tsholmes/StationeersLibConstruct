@@ -6,15 +6,30 @@ using System.Reflection;
 using System.Reflection.Emit;
 using Assets.Scripts;
 using Assets.Scripts.Inventory;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Serialization;
 using DLC;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace LibConstruct
 {
+  [HarmonyPatch]
+  static class SaveDataPatch
+  {
+    [HarmonyPatch(typeof(XmlSaveLoad), nameof(XmlSaveLoad.AddExtraTypes)), HarmonyPrefix]
+    static void AddExtraTypes(ref List<Type> extraTypes)
+    {
+      // add these types in case implementers try to save lists of them
+      extraTypes.Add(typeof(PlacementBoardHostSaveData));
+      extraTypes.Add(typeof(PlacementBoardSaveData));
+      extraTypes.Add(typeof(PlacementBoardStructureSaveData));
+    }
+  }
+
   [HarmonyPatch(typeof(InventoryManager))]
   static class InventoryManagerPatch
   {
@@ -286,19 +301,24 @@ namespace LibConstruct
       AddToSave = (AddToSaveDelegate)method.CreateDelegate(typeof(AddToSaveDelegate));
     }
 
+    static bool SkipSave(Thing thing, Thing parent)
+    {
+      return thing is IPlacementBoardStructure structure
+        && structure.Board != null
+        && structure.Board.PrimaryHost == (parent as IPlacementBoardHost);
+    }
+
     [HarmonyPatch("AddToSave", typeof(Thing), typeof(XmlSaveLoad.WorldData), typeof(Thing)), HarmonyPrefix]
     static bool AddToSavePrefix(Thing thing, XmlSaveLoad.WorldData worldData, Thing parent)
     {
       // if this is a board structure, skip saving until we are saving from the boards primary host
-      return thing is not IPlacementBoardStructure structure
-      || structure.Board == null
-      || structure.Board.PrimaryHost == (parent as IPlacementBoardHost);
+      return !SkipSave(thing, parent);
     }
 
     [HarmonyPatch("AddToSave", typeof(Thing), typeof(XmlSaveLoad.WorldData), typeof(Thing)), HarmonyPostfix]
     static void AddToSavePostfix(Thing thing, XmlSaveLoad.WorldData worldData, Thing parent)
     {
-      if (thing is not IPlacementBoardHost host) return;
+      if (thing is not IPlacementBoardHost host || SkipSave(thing, parent)) return;
       foreach (var board in host.GetPlacementBoards())
       {
         if (board.PrimaryHost != host)
@@ -317,6 +337,86 @@ namespace LibConstruct
     static void HostFinishedLoad()
     {
       PlacementBoard.FinishLoad();
+    }
+
+    [HarmonyPatch(nameof(SharedDLCManager.ClientFinishedLoad)), HarmonyPostfix]
+    static void ClientFinishedLoad()
+    {
+      PlacementBoard.FinishLoad();
+    }
+  }
+
+  [HarmonyPatch(typeof(WorldManager))]
+  static class WorldManagerPatch
+  {
+    [HarmonyPatch(nameof(WorldManager.DeserializeOnJoin)), HarmonyPrefix]
+    static void DeserializeOnJoin(RocketBinaryReader reader)
+    {
+      PlacementBoard.StartLoad();
+    }
+  }
+
+  [HarmonyPatch(typeof(NetworkServer))]
+  static class NetworkServerPatch
+  {
+    // NetworkServer handles joins one at a time in ProcessJoinQueue, so it should be fine to use a global here
+    // If joins are handled in parallel in the future, we'll need to make this ThreadLocal or something
+    // This is done as a stack so we won't need to change anything later to support nested boards (if that ever makes sense)
+    private static Stack<PlacementBoard> SerializingBoards = new();
+
+    static bool SkipSerialize(Thing thing)
+    {
+      return thing is IPlacementBoardStructure structure
+        && structure.Board != null
+        && (SerializingBoards.Count == 0 || SerializingBoards.Peek() != structure.Board);
+    }
+
+    [HarmonyPatch(nameof(NetworkServer.Serialize)), HarmonyPrefix]
+    static bool SerializePrefix(RocketBinaryWriter writer, Thing thing, ref uint count)
+    {
+      return !SkipSerialize(thing);
+    }
+
+    [HarmonyPatch(nameof(NetworkServer.Serialize)), HarmonyPostfix]
+    static void SerializePostfix(RocketBinaryWriter writer, Thing thing, ref uint count)
+    {
+      if (thing is not IPlacementBoardHost host || SkipSerialize(thing))
+        return;
+      foreach (var board in host.GetPlacementBoards())
+      {
+        SerializingBoards.Push(board);
+        foreach (var child in board.Structures)
+          NetworkServer.Serialize(writer, (Thing)child, ref count);
+        SerializingBoards.Pop();
+      }
+    }
+  }
+
+  [HarmonyPatch(typeof(MessageFactory))]
+  static class MessageFactoryPatch
+  {
+    // It would be better for StationeersMods to have a registry of custom message types
+    // so we don't have to worry about conflicting indices
+    [HarmonyPatch(nameof(MessageFactory.GetTypeFromIndex)), HarmonyPrefix]
+    static bool GetTypeFromIndex(byte index, ref Type __result)
+    {
+      if (index == CreateBoardStructureMessage.TypeIndex)
+      {
+        __result = typeof(CreateBoardStructureMessage);
+        return false;
+      }
+      return true;
+    }
+
+    [HarmonyPatch(nameof(MessageFactory.GetIndexFromType)), HarmonyPrefix]
+    static bool GetIndexFromType(Type type, ref byte __result)
+    {
+      if (type == typeof(CreateBoardStructureMessage))
+      {
+        __result = CreateBoardStructureMessage.TypeIndex;
+        return false;
+      }
+      return true;
     }
   }
 }
