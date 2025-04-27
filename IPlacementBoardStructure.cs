@@ -11,6 +11,7 @@ namespace LibConstruct
   {
     public PlacementBoard Board { get; set; }
     public PlacementBoard.BoardCell[] BoardCells { get; set; }
+    public Transform Transform { get; }
     public string name { get; } // from UnityEngine.Object
     public void SetStructureData(Quaternion localRotation, ulong ownerClientId, Grid3 localGrid, int customColourIndex); // from Structure
   }
@@ -19,12 +20,9 @@ namespace LibConstruct
   // These are separated out so we don't require a specific base class and can extend any builtin thing type.
   public static class BoardStructureHooks
   {
-    public static void Awake(IPlacementBoardStructure boardStruct)
+    public static void Awake<T>(T structure) where T : Structure, IPlacementBoardStructure
     {
-      if (boardStruct is Structure structure)
-      {
-        structure.PlacementType = (PlacementSnap)(-1); // skip normal placement behavior
-      }
+      structure.PlacementType = (PlacementSnap)(-1); // skip normal placement behavior
     }
 
     // used like:
@@ -32,11 +30,10 @@ namespace LibConstruct
     // if (!constructInfo.CanConstruct)
     //   return constructInfo;
     // <custom construction checks>
-    public static CanConstructInfo CanConstruct(IPlacementBoardStructure boardStruct)
+    public static CanConstructInfo CanConstruct<T>(T structure) where T : Structure, IPlacementBoardStructure
     {
-      if (boardStruct is not Structure structure) return CanConstructInfo.ValidPlacement;
-      if (boardStruct.Board == null) return CanConstructInfo.InvalidPlacement("must be placed on board"); // TODO: localize
-      foreach (var cell in boardStruct.Board.BoundsCells(structure.Transform, structure.Bounds))
+      if (structure.Board == null) return CanConstructInfo.InvalidPlacement("must be placed on board"); // TODO: localize
+      foreach (var cell in structure.Board.BoundsCells(structure.Transform, structure.Bounds))
       {
         if (cell == null)
           return CanConstructInfo.InvalidPlacement("overflows board bounds"); // TODO: localize
@@ -44,6 +41,21 @@ namespace LibConstruct
           return CanConstructInfo.InvalidPlacement(GameStrings.PlacementBlockedByStructure.AsString(other.DisplayName));
       }
       return CanConstructInfo.ValidPlacement;
+    }
+
+    public static void OnDeregistered<T>(T structure) where T : Structure, IPlacementBoardStructure
+    {
+      structure.Board.Deregister(structure);
+    }
+
+    public static PlacementBoardStructureSaveData SerializeSave(IPlacementBoardStructure structure)
+    {
+      return new PlacementBoardStructureSaveData { BoardID = structure.Board.ID };
+    }
+
+    public static void DeserializeSave(IPlacementBoardStructure structure, PlacementBoardStructureSaveData saveData)
+    {
+      PlacementBoard.RegisterLoading(structure, saveData.BoardID);
     }
   }
 }

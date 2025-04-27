@@ -40,12 +40,67 @@ namespace LibConstruct
         CursorGrid = CursorBoard.WorldToGrid(CursorManager.CursorHit.point);
     }
 
+    private static long NextID;
+    private static Dictionary<long, IBoardRef> LoadingRefs = new();
+    public static BoardRef<T> LoadRef<T>(long id) where T : PlacementBoard, new()
+    {
+      if (id >= NextID)
+        NextID = id + 1;
+      if (!LoadingRefs.TryGetValue(id, out var iref))
+      {
+        iref = new BoardRef<T>();
+        LoadingRefs[id] = iref;
+      }
+      return (BoardRef<T>)iref;
+    }
+
+    public static void RegisterLoading(IPlacementBoardStructure structure, long boardID)
+    {
+      // board elements are ordered after the primary host so the ref should always be here
+      var iref = LoadingRefs[boardID];
+      iref.Board.AwaitingRegister.Add(structure);
+    }
+
+    public static void StartLoad()
+    {
+      LoadingRefs.Clear();
+    }
+    public static void FinishLoad()
+    {
+      foreach (var iref in LoadingRefs.Values)
+      {
+        foreach (var structure in iref.Board.AwaitingRegister)
+          iref.Board.Register(structure);
+        iref.Board.AwaitingRegister.Clear();
+      }
+      LoadingRefs.Clear();
+    }
+
     protected List<IPlacementBoardHost> Hosts = new();
     protected List<BoxCollider> Colliders = new();
+    public List<IPlacementBoardStructure> Structures = new();
     // use SortedDictionary since Grid3 doesn't hash well
     protected SortedDictionary<Grid3, BoardCell> Cells = new();
+    private List<IPlacementBoardStructure> AwaitingRegister = new();
+    // ID is only used to remerge boards on load
+    public long ID;
     public Transform Origin;
-    public float GridSize;
+
+    public IPlacementBoardHost PrimaryHost => this.Hosts.Count > 0 ? this.Hosts[0] : null;
+
+    public PlacementBoard()
+    {
+      this.ID = NextID++;
+    }
+
+    public virtual PlacementBoardSaveData SerializeSave()
+    {
+      var saveData = new PlacementBoardSaveData();
+      this.InitializeSaveData(ref saveData);
+      return saveData;
+    }
+    protected virtual void InitializeSaveData(ref PlacementBoardSaveData saveData) { }
+    public virtual void DeserializeSave(PlacementBoardSaveData saveData) { }
 
     public void AddHost(IPlacementBoardHost host)
     {
@@ -72,6 +127,7 @@ namespace LibConstruct
         return;
       foreach (var collider in host.CollidersForBoard(this))
         this.RemoveCollider(collider);
+      // TODO: if this is the primary host, need to reparent everything and adjust origin offset
       this.Hosts.Remove(host);
     }
 
@@ -89,6 +145,35 @@ namespace LibConstruct
           this.Cells.Remove(cell.Position);
         }
       }
+    }
+
+    public void Register(IPlacementBoardStructure boardStructure)
+    {
+      if (boardStructure.Board != null || this.Structures.Contains(boardStructure) || boardStructure is not Structure structure)
+        return;
+      boardStructure.Board = this;
+      var grid = this.WorldToGrid(boardStructure.Transform.position);
+      boardStructure.Transform.SetParent(this.Origin);
+      boardStructure.Transform.position = this.GridToWorld(grid);
+      var cells = this.BoundsCells(boardStructure.Transform, structure.Bounds).ToArray();
+      foreach (var cell in cells)
+      {
+        cell.Structure = boardStructure;
+      }
+      boardStructure.BoardCells = cells;
+      this.Structures.Add(boardStructure);
+    }
+
+    public void Deregister<T>(T structure) where T : Structure, IPlacementBoardStructure
+    {
+      if (structure.Board != this || !this.Structures.Contains(structure))
+        return;
+      foreach (var cell in structure.BoardCells)
+      {
+        cell.Structure = null;
+      }
+      structure.BoardCells = null;
+      this.Structures.Remove(structure);
     }
 
     private static Bounds ColliderLocalBounds(BoxCollider collider) => new Bounds(collider.center, collider.size);
@@ -127,6 +212,7 @@ namespace LibConstruct
 
     public Grid3 WorldToGrid(Vector3 world)
     {
+      // TODO: just InverseTransform to Origin space (with offset)
       world -= this.Origin.position;
       var gridVec = new Vector3(
         Vector3.Dot(world, this.Origin.right),
@@ -143,6 +229,7 @@ namespace LibConstruct
     }
 
     public abstract IPlacementBoardStructure EquivalentStructure(Structure structure);
+    public abstract float GridSize { get; }
 
     public static void UseMultiConstructorBoard(Thing player, int activeHandSlotId, Vector3 targetLocation, Quaternion targetRotation, bool authoringMode, ulong steamId, Thing spawnPrefab)
     {
@@ -165,22 +252,18 @@ namespace LibConstruct
         create.CustomColor = constructor.CustomColor.Index;
 
       if (GameManager.RunSimulation)
-      {
-        var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.Prefab, create.WorldPosition, create.Rotation);
-        var thing = (Thing)structure;
-        structure.Board = create.Board;
-        structure.BoardCells = create.Board.BoundsCells(thing.Transform, thing.Bounds).ToArray();
-        foreach (var cell in structure.BoardCells)
-        {
-          cell.Structure = structure;
-        }
-        structure.SetStructureData(create.Rotation, create.OwnerClientId, create.Position, create.CustomColor);
-        // TODO: structure.OnBoardRegistered?
-      }
+        CreateBoardStructure(create);
       else
       {
         // TODO: networking
       }
+    }
+
+    public static void CreateBoardStructure(CreateBoardStructureInstance create)
+    {
+      var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.Prefab, create.WorldPosition, create.Rotation);
+      structure.SetStructureData(create.Rotation, create.OwnerClientId, create.Position, create.CustomColor);
+      create.Board.Register(structure);
     }
 
     public class BoardCell

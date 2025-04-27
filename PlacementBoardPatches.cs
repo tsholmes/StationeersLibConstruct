@@ -8,6 +8,8 @@ using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.Serialization;
+using DLC;
 using HarmonyLib;
 using UnityEngine;
 
@@ -189,12 +191,15 @@ namespace LibConstruct
     {
       // undo the overriden position
       if (__instance is IPlacementBoardStructure)
+      {
         __instance.ThingTransformPosition = __state;
+        __instance.RegisteredPosition = __state;
+        __instance.RegisteredRotation = __instance.ThingTransformRotation;
+      }
     }
     [HarmonyPatch(nameof(Structure.RebuildGridState)), HarmonyPrefix]
     static void RebuildGridStatePrefix(Structure __instance, out Vector3 __state)
     {
-      // TODO: is this what we want to do here?
       __state = __instance.ThingTransformPosition;
     }
 
@@ -203,7 +208,11 @@ namespace LibConstruct
     {
       // undo the overriden position
       if (__instance is IPlacementBoardStructure)
+      {
         __instance.ThingTransformPosition = __state;
+        __instance.RegisteredPosition = __state;
+        __instance.RegisteredRotation = __instance.ThingTransformRotation;
+      }
     }
 
     [HarmonyPatch(nameof(Structure.CanConstruct)), HarmonyPrefix]
@@ -257,6 +266,57 @@ namespace LibConstruct
       GridController.AllStructures.Remove(structure);
       structure.OnDeregistered();
       return false;
+    }
+  }
+
+  [HarmonyPatch(typeof(XmlSaveLoad))]
+  static class XmlSaveLoadPatch
+  {
+    [HarmonyPatch("LoadInNetworks"), HarmonyPrefix]
+    static void LoadInNetworks(XmlSaveLoad.WorldData worldData)
+    {
+      PlacementBoard.StartLoad();
+    }
+
+    delegate void AddToSaveDelegate(Thing thing, XmlSaveLoad.WorldData worldData, Thing parent);
+    private static AddToSaveDelegate AddToSave;
+    static XmlSaveLoadPatch()
+    {
+      var method = typeof(XmlSaveLoad).GetMethod("AddToSave", BindingFlags.Static | BindingFlags.NonPublic);
+      AddToSave = (AddToSaveDelegate)method.CreateDelegate(typeof(AddToSaveDelegate));
+    }
+
+    [HarmonyPatch("AddToSave", typeof(Thing), typeof(XmlSaveLoad.WorldData), typeof(Thing)), HarmonyPrefix]
+    static bool AddToSavePrefix(Thing thing, XmlSaveLoad.WorldData worldData, Thing parent)
+    {
+      // if this is a board structure, skip saving until we are saving from the boards primary host
+      return thing is not IPlacementBoardStructure structure
+      || structure.Board == null
+      || structure.Board.PrimaryHost == (parent as IPlacementBoardHost);
+    }
+
+    [HarmonyPatch("AddToSave", typeof(Thing), typeof(XmlSaveLoad.WorldData), typeof(Thing)), HarmonyPostfix]
+    static void AddToSavePostfix(Thing thing, XmlSaveLoad.WorldData worldData, Thing parent)
+    {
+      if (thing is not IPlacementBoardHost host) return;
+      foreach (var board in host.GetPlacementBoards())
+      {
+        if (board.PrimaryHost != host)
+          continue;
+        // if this is the primary host for the board, visit all children
+        foreach (var structure in board.Structures)
+          AddToSave((Thing)structure, worldData, thing);
+      }
+    }
+  }
+
+  [HarmonyPatch(typeof(SharedDLCManager))]
+  static class SharedDLCManagerPatch
+  {
+    [HarmonyPatch(nameof(SharedDLCManager.HostFinishedLoad)), HarmonyPostfix]
+    static void HostFinishedLoad()
+    {
+      PlacementBoard.FinishLoad();
     }
   }
 }
