@@ -98,7 +98,7 @@ namespace LibConstruct
         var rotOffset = RotationOffset();
         currentRotation = (currentRotation + rotOffset + 4) % 4;
 
-        var rot = board.Origin.localRotation * Quaternion.AngleAxis(90 * (float)currentRotation, Vector3.forward);
+        var rot = board.Origin.rotation * Quaternion.AngleAxis(90 * (float)currentRotation, Vector3.forward);
 
         PlacementBoard.PlacingOnBoard = true;
         boardCursor.Board = board;
