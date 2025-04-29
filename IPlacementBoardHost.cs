@@ -99,6 +99,13 @@ namespace LibConstruct
       boardRef.Board.AddHost(host);
     }
 
+    // call this in OnDestroyed for each hosted board
+    public static void OnDestroyedBoard<T>(IPlacementBoardHost host, BoardRef<T> boardRef) where T : PlacementBoard, new()
+    {
+      boardRef.Board?.RemoveHost(host);
+      boardRef.Board = null;
+    }
+
     // call this in SerializeOnJoin for each hosted board
     public static void SerializeBoardOnJoin<T>(RocketBinaryWriter writer, IPlacementBoardHost host, T board) where T : PlacementBoard, new()
     {
