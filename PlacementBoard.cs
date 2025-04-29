@@ -7,6 +7,7 @@ using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Util;
 using UnityEngine;
 
@@ -157,13 +158,16 @@ namespace LibConstruct
     {
       if (!this.Hosts.Contains(host))
         return;
+      var removedStructures = new HashSet<IPlacementBoardStructure>();
       foreach (var collider in host.CollidersForBoard(this))
-        this.RemoveCollider(collider);
+        this.RemoveCollider(collider, removedStructures);
+      if (removedStructures.Count != 0)
+        this.RemoveOrphanedStructures(host, removedStructures.ToList());
       // TODO: if this is the primary host, need to reparent everything and adjust origin offset
       this.Hosts.Remove(host);
     }
 
-    private void RemoveCollider(BoxCollider collider)
+    private void RemoveCollider(BoxCollider collider, HashSet<IPlacementBoardStructure> removedStructures)
     {
       if (!this.Colliders.Contains(collider))
         return;
@@ -175,13 +179,84 @@ namespace LibConstruct
         if (!cell.ColliderDeref())
         {
           if (cell.Structure != null)
-            toRemove.Add(cell.Structure);
+            removedStructures.Add(cell.Structure);
           this.Cells.Remove(cell.Position);
         }
       }
-      if (GameManager.RunSimulation)
-        foreach (var structure in toRemove)
-          OnServer.Destroy((Thing)structure);
+    }
+
+    // This is called when removing a host also removes cells containing board structures.
+    // This should always either destroy the board structures, or deregister and reregister them in a different spot
+    protected virtual void RemoveOrphanedStructures(IPlacementBoardHost removedHost, List<IPlacementBoardStructure> removedStructures)
+    {
+      var hostStruct = (Structure)removedHost;
+      DeconstructToKits(hostStruct.Transform.position, removedStructures);
+      DestroyStructureList(removedStructures);
+    }
+
+    // Helper function to call during RemoveOrphanedStructures.
+    // Walks the build states of the removed structures to count all the entry tools, and spawns in combined stacks of kits at the specified location
+    public static void DeconstructToKits(Vector3 kitSpawnLocation, List<IPlacementBoardStructure> removedStructures)
+    {
+      if (!GameManager.RunSimulation)
+        return;
+      var buildKits = new Dictionary<int, int>(); // prefab hash -> count
+      var kitParents = new Dictionary<int, Structure>(); // prefab hash -> count
+      void addKit(int hash, int count, Structure first)
+      {
+        if (kitParents.ContainsKey(hash))
+          buildKits[hash] += count;
+        else
+        {
+          kitParents[hash] = first;
+          buildKits[hash] = count;
+        }
+      }
+      foreach (var boardStruct in removedStructures)
+      {
+        var structure = (Structure)boardStruct;
+        for (var i = structure.CurrentBuildStateIndex; i >= 0; i--)
+        {
+          var buildState = structure.BuildStates[i];
+          var entryTool = buildState.Tool.ToolEntry;
+          var entryTool2 = buildState.Tool.ToolEntry2;
+          if (entryTool != null && entryTool is not Tool)
+            addKit(entryTool.PrefabHash, buildState.Tool.EntryQuantity, structure);
+          if (entryTool2 != null && entryTool2 is not Tool)
+            addKit(entryTool2.PrefabHash, buildState.Tool.EntryQuantity2, structure);
+        }
+      }
+
+      foreach (var hash in buildKits.Keys)
+      {
+        var parent = kitParents[hash];
+        var count = buildKits[hash];
+
+        var toolUse = new ToolUse
+        {
+          ToolEntry = Prefab.Find<Item>(hash),
+          EntryQuantity = count,
+        };
+
+        var eventInstance = new ConstructionEventInstance
+        {
+          Position = kitSpawnLocation,
+          Rotation = Quaternion.identity,
+          Parent = parent,
+        };
+
+        toolUse.Deconstruct(eventInstance);
+      }
+    }
+
+    // Helper function to call during RemoveOrphanedStructures.
+    // Destroys the list of structures
+    public static void DestroyStructureList(List<IPlacementBoardStructure> removedStructures)
+    {
+      if (!GameManager.RunSimulation)
+        return;
+      foreach (var structure in removedStructures)
+        OnServer.Destroy((Thing)structure);
     }
 
     public void Register(IPlacementBoardStructure boardStructure)
