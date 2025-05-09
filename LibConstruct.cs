@@ -12,6 +12,8 @@ namespace LibConstruct
 
       var harmony = new Harmony("LibConstruct");
       harmony.PatchAll();
+
+      WorldManager.OnGameDataLoaded += () => CanConstructPatch.RunPatch(harmony);
     }
   }
 }
