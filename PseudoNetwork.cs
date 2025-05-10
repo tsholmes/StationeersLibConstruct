@@ -1,16 +1,27 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Assets.Scripts.GridSystem;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts.Util;
+using UnityEngine;
 
 namespace LibConstruct
 {
-  public interface IPseudoNetworkMember<T> where T : IPseudoNetworkMember<T>
+  public interface IPseudoNetworkMember<T> : IReferencable where T : IPseudoNetworkMember<T>
   {
     // connections that should connect network members
     public IEnumerable<Connection> Connections { get; }
     public PseudoNetwork<T> Network { get; }
+
+    // When network members are changed, called once for each new member
+    public void OnMemberAdded(T member);
+    // When network members are changed, called once for each member no longer in network
+    public void OnMemberRemoved(T member);
+    // When network members are changed, called once after all OnMemberAdded/OnMemberRemoved hooks
+    public void OnMembersChanged();
   }
 
   internal static class PseudoNetworks
@@ -96,6 +107,80 @@ namespace LibConstruct
 
     public PseudoNetwork<T> Join() => new(this);
 
+    // Call this at the end of OnRegistered
+    public void RebuildNetworkCreate(T newMember)
+    {
+      this.RebuildNetworkFrom(newMember, false);
+    }
+
+    // Call this at the end of OnDeregistered
+    public void RebuildNetworkDestroy(T destroyedMember)
+    {
+      this.RebuildNetworkFrom(destroyedMember, true);
+    }
+
+    private void RebuildNetworkFrom(T start, bool excludeStart)
+    {
+      var visited = new HashSet<T>();
+      if (excludeStart) visited.Add(start);
+
+      var memberList = start.Network.Members.ToList(); // make a copy
+      if (memberList.Count == 0)
+        memberList.Add(start);
+
+      Debug.Log($"rebuilding network from {start.ReferenceId} {excludeStart} with members {string.Join(",", memberList.Select(m => m.ReferenceId))}");
+
+      // run through each member and rebuild its network, skipping any included in networks we already rebuilt
+      foreach (var member in memberList)
+      {
+        if (visited.Contains(member))
+          continue;
+        this.RebuildNetworkSingle(member, excludeStart ? start : default(T));
+        visited.AddRange(member.Network.Members);
+      }
+
+      Debug.Log($"total visited({visited.Count}) {string.Join(",", visited.Select(m => m.ReferenceId))}");
+    }
+
+    private void RebuildNetworkSingle(T start, T exclude)
+    {
+      Debug.Log($"rebuilding single network from {start.ReferenceId} exclude {exclude?.ReferenceId}");
+      // BFS walk connections from start
+      var queue = new Queue<T>();
+      queue.Enqueue(start);
+      var members = new HashSet<T>() { start };
+      while (queue.Count > 0)
+      {
+        var member = queue.Dequeue();
+        foreach (var conn in member.Connections)
+        {
+          var other = SmallCell.Get<T>(conn.GetLocalGrid());
+          // exclude the member being destroyed (if there is one), and members we've already enqueued
+          if (other == null || other.Equals(exclude) || members.Contains(other))
+            continue;
+          var connected = false;
+          foreach (var oconn in other.Connections)
+          {
+            // connection must match the network type and be facing the opposite grids
+            if (oconn.ConnectionType == this.ConnectionType && oconn.GetLocalGrid() == conn.GetFacingGrid() && oconn.GetFacingGrid() == conn.GetLocalGrid())
+            {
+              connected = true;
+              break;
+            }
+          }
+          if (connected)
+          {
+            queue.Enqueue(other);
+            members.Add(other);
+          }
+        }
+      }
+      Debug.Log($"final members({members.Count}) {string.Join(",", members.Select(m => m.ReferenceId))}");
+      // Send updates to all member lists
+      foreach (var member in members)
+        member.Network.ReplaceMembers(member, members);
+    }
+
     // These helpers only exist to make it more convenient to have one class implement multiple
     // network types. The interface members will have to be implemented explicitly, so calling
     // these on the definition will implicitly call the right interface methods.
@@ -103,15 +188,29 @@ namespace LibConstruct
     public IEnumerable<Connection> MemberConnections(T member) => member.Connections;
   }
 
+  // Contains the list of all connected members. Each member has its own PseudoNetwork object
   public class PseudoNetwork<T> where T : IPseudoNetworkMember<T>
   {
     public readonly PseudoNetworkType<T> Type;
-    public readonly HashSet<T> Members;
+    public HashSet<T> Members { get; internal set; }
 
     internal PseudoNetwork(PseudoNetworkType<T> type)
     {
       this.Type = type;
       this.Members = new();
+    }
+
+    internal void ReplaceMembers(T self, HashSet<T> newMembers)
+    {
+      var oldMembers = this.Members;
+      this.Members = newMembers;
+      foreach (var member in oldMembers)
+        if (!newMembers.Contains(member))
+          self.OnMemberRemoved(member);
+      foreach (var member in newMembers)
+        if (!oldMembers.Contains(member))
+          self.OnMemberAdded(member);
+      self.OnMembersChanged();
     }
   }
 }

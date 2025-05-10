@@ -19,8 +19,11 @@ namespace LibConstruct
 
       // patch the (transpiled) original and all prefix/postfix patch methods
       var allMethods = new List<MethodInfo> { method };
-      allMethods.AddRange(patches.Prefixes.Select(patch => patch.PatchMethod));
-      allMethods.AddRange(patches.Postfixes.Select(patch => patch.PatchMethod));
+      if (patches != null)
+      {
+        allMethods.AddRange(patches.Prefixes.Select(patch => patch.PatchMethod));
+        allMethods.AddRange(patches.Postfixes.Select(patch => patch.PatchMethod));
+      }
 
       var transpiler = new HarmonyMethod(PatchUtils.Method(() => Patch(default, default)));
 
