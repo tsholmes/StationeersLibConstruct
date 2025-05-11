@@ -10,6 +10,7 @@ using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Serialization;
+using Assets.Scripts.Util;
 using DLC;
 using HarmonyLib;
 using UnityEngine;
@@ -109,6 +110,14 @@ namespace LibConstruct
         InventoryManager.CurrentRotation = cursor.ThingTransformRotation;
         PlacementBoard.CursorRotation = currentRotation;
         return false;
+      }
+      else if (InventoryManager.ConstructionCursor is IPlacementBoardStructure boardStructure)
+      {
+        boardStructure.Board = null;
+        // this is copied from InventoryManager.PlacementMode to get the base cursor placement position
+        InventoryManager.ConstructionCursor.ThingTransformPosition = InputHelpers.GetCameraForwardGrid(0.6f, InventoryManager.ConstructionCursor.GetCursorOffset);
+        InventoryManager.ConstructionCursor.ThingTransformRotation = InventoryManager.Parent.ThingTransformRotation;
+        InventoryManager.CurrentRotation = InventoryManager.ConstructionCursor.ThingTransformRotation;
       }
       return true;
     }
