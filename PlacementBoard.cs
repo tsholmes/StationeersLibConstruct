@@ -104,7 +104,7 @@ namespace LibConstruct
       Loading = false;
     }
 
-    protected List<IPlacementBoardHost> Hosts = new();
+    protected List<HostPair> Hosts = new();
     protected List<BoxCollider> Colliders = new();
     public List<IPlacementBoardStructure> Structures = new();
     // use SortedDictionary since Grid3 doesn't hash well
@@ -112,9 +112,14 @@ namespace LibConstruct
     private List<IPlacementBoardStructure> AwaitingRegister = new();
     // ID is only used to remerge boards on load
     public long ID;
-    public Transform Origin;
+    public Vector3 PositionOffset = Vector3.zero;
+    public Quaternion RotationOffset = Quaternion.identity;
 
-    public IPlacementBoardHost PrimaryHost => this.Hosts.Count > 0 ? this.Hosts[0] : null;
+    public Vector3 OriginPosition => this.Origin.position + this.PositionOffset;
+    public Quaternion OriginRotation => this.Origin.rotation * this.RotationOffset;
+
+    public Transform Origin => this.Hosts.Count > 0 ? this.Hosts[0].Origin : null;
+    public IPlacementBoardHost PrimaryHost => this.Hosts.Count > 0 ? this.Hosts[0].Host : null;
 
     public PlacementBoard()
     {
@@ -127,21 +132,32 @@ namespace LibConstruct
       this.InitializeSaveData(ref saveData);
       return saveData;
     }
-    protected virtual void InitializeSaveData(ref PlacementBoardSaveData saveData) { }
-    public virtual void DeserializeSave(PlacementBoardSaveData saveData) { }
+    protected virtual void InitializeSaveData(ref PlacementBoardSaveData saveData)
+    {
+      saveData.PositionOffset = this.PositionOffset;
+      saveData.RotationOffset = this.RotationOffset;
+    }
+    public virtual void DeserializeSave(PlacementBoardSaveData saveData)
+    {
+      this.PositionOffset = saveData.PositionOffset;
+      this.RotationOffset = saveData.RotationOffset;
+      // swap the zero quaternion (if missing from save) with identity
+      if (this.RotationOffset == default)
+        this.RotationOffset = Quaternion.identity;
+    }
 
     public virtual void SerializeOnJoin(RocketBinaryWriter writer) { }
     public virtual void DeserializeOnJoin(RocketBinaryReader reader) { }
     public virtual void BuildUpdate(RocketBinaryWriter writer) { }
     public virtual void ProcessUpdate(RocketBinaryReader reader) { }
 
-    public void AddHost(IPlacementBoardHost host)
+    public void AddHost(IPlacementBoardHost host, Transform origin)
     {
-      if (this.Hosts.Contains(host))
+      if (this.Hosts.Any(v => v.Host == host))
         return;
+      this.Hosts.Add(new(host, origin));
       foreach (var collider in host.CollidersForBoard(this))
         this.AddCollider(collider);
-      this.Hosts.Add(host);
     }
 
     private void AddCollider(BoxCollider collider)
@@ -156,15 +172,30 @@ namespace LibConstruct
 
     public void RemoveHost(IPlacementBoardHost host)
     {
-      if (!this.Hosts.Contains(host))
+      var idx = this.Hosts.FindIndex(v => v.Host == host);
+      if (idx == -1)
         return;
+      var oldOrigin = this.Hosts[idx].Origin;
+
       var removedStructures = new HashSet<IPlacementBoardStructure>();
       foreach (var collider in host.CollidersForBoard(this))
         this.RemoveCollider(collider, removedStructures);
       if (removedStructures.Count != 0)
         this.RemoveOrphanedStructures(host, removedStructures.ToList());
-      // TODO: if this is the primary host, need to reparent everything and adjust origin offset
-      this.Hosts.Remove(host);
+
+      var originPos = this.OriginPosition;
+      var originRotation = this.OriginRotation;
+
+      this.Hosts.RemoveAt(idx);
+      if (idx != 0 || this.PrimaryHost == null)
+        return;
+      // if this was the primary host (and there is any host left), need to reparent everything and adjust origin offset
+      this.PositionOffset = originPos - this.Origin.position;
+      this.RotationOffset = originRotation * Quaternion.Inverse(this.Origin.rotation);
+      foreach (var structure in this.Structures)
+      {
+        structure.Transform.SetParent(this.Origin, worldPositionStays: true);
+      }
     }
 
     private void RemoveCollider(BoxCollider collider, HashSet<IPlacementBoardStructure> removedStructures)
@@ -274,7 +305,7 @@ namespace LibConstruct
       this.Structures.Add(boardStructure);
       this.OnStructureRegistered(boardStructure);
       foreach (var host in this.Hosts)
-        host.OnBoardStructureRegistered(this, boardStructure);
+        host.Host.OnBoardStructureRegistered(this, boardStructure);
     }
 
     public void Deregister<T>(T structure) where T : Structure, IPlacementBoardStructure
@@ -283,7 +314,7 @@ namespace LibConstruct
         return;
       this.OnStructureDeregistered(structure);
       foreach (var host in this.Hosts)
-        host.OnBoardStructureDeregistered(this, structure);
+        host.Host.OnBoardStructureDeregistered(this, structure);
       foreach (var cell in structure.BoardCells)
         cell.Structure = null;
       structure.BoardCells = null;
@@ -332,11 +363,11 @@ namespace LibConstruct
 
     public Grid3 WorldToGrid(Vector3 world)
     {
-      // TODO: just InverseTransform to Origin space (with offset)
-      world -= this.Origin.position;
+      var originRot = this.OriginRotation;
+      world -= this.OriginPosition;
       var gridVec = new Vector3(
-        Vector3.Dot(world, this.Origin.right),
-        Vector3.Dot(world, this.Origin.up)
+        Vector3.Dot(world, originRot * Vector3.right),
+        Vector3.Dot(world, originRot * Vector3.up)
       ) / this.GridSize;
 
       return new Grid3(gridVec.Round());
@@ -345,7 +376,11 @@ namespace LibConstruct
     public Vector3 GridToWorld(Grid3 grid)
     {
       var vecGrid = grid.ToVector3();
-      return this.Origin.position + (vecGrid.x * this.Origin.right + vecGrid.y * this.Origin.up + vecGrid.z * this.Origin.forward) * this.GridSize;
+      var originRot = this.OriginRotation;
+      var right = originRot * Vector3.right;
+      var up = originRot * Vector3.up;
+      var forward = originRot * Vector3.forward;
+      return this.OriginPosition + (vecGrid.x * right + vecGrid.y * up + vecGrid.z * forward) * this.GridSize;
     }
 
     public abstract IPlacementBoardStructure EquivalentStructure(Structure structure);
@@ -412,6 +447,18 @@ namespace LibConstruct
       {
         this.refs--;
         return this.refs > 0;
+      }
+    }
+
+    protected struct HostPair
+    {
+      public IPlacementBoardHost Host;
+      public Transform Origin;
+
+      public HostPair(IPlacementBoardHost host, Transform origin)
+      {
+        this.Host = host;
+        this.Origin = origin;
       }
     }
   }

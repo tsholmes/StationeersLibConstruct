@@ -1,5 +1,6 @@
 
 using System.Xml.Serialization;
+using UnityEngine;
 
 namespace LibConstruct
 {
@@ -20,6 +21,10 @@ namespace LibConstruct
   [XmlInclude(typeof(PlacementBoardSaveData))]
   public class PlacementBoardSaveData
   {
+    [XmlElement]
+    public Vector3 PositionOffset;
+    [XmlElement]
+    public Quaternion RotationOffset;
   }
 
   // include once in a board structure to properly parent on load

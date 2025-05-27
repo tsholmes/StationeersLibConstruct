@@ -68,12 +68,8 @@ namespace LibConstruct
       boardRef = PlacementBoard.LoadRef<T>(saveData.BoardId, saveData.PrimaryHostId);
       if (host.ReferenceId != saveData.PrimaryHostId)
         return;
-      boardRef.Board = new()
-      {
-        ID = saveData.BoardId,
-        Origin = origin,
-      };
-      boardRef.Board.AddHost(host);
+      boardRef.Board = new() { ID = saveData.BoardId };
+      boardRef.Board.AddHost(host, origin);
       boardRef.Board.DeserializeSave(saveData.BoardSaveData);
     }
 
@@ -82,12 +78,12 @@ namespace LibConstruct
     {
       if (boardRef == null)
       {
-        boardRef = new BoardRef<T> { Board = new() { Origin = origin } };
-        boardRef.Board.AddHost(host);
+        boardRef = new BoardRef<T> { Board = new() };
+        boardRef.Board.AddHost(host, origin);
         return;
       }
       if (boardRef.Board.PrimaryHost != host)
-        boardRef.Board.AddHost(host);
+        boardRef.Board.AddHost(host, origin);
     }
 
     // call this in OnRegistered for each hosted board
@@ -95,8 +91,8 @@ namespace LibConstruct
     {
       if (GameManager.GameState == GameState.Loading || GameManager.GameState == GameState.Joining)
         return;
-      boardRef = new BoardRef<T> { Board = new() { Origin = origin } };
-      boardRef.Board.AddHost(host);
+      boardRef = new BoardRef<T> { Board = new() };
+      boardRef.Board.AddHost(host, origin);
     }
 
     // call this in OnDestroyed for each hosted board
@@ -128,12 +124,8 @@ namespace LibConstruct
         boardRef = new();
       if (host.ReferenceId != hostId)
         return;
-      boardRef.Board = new()
-      {
-        ID = id,
-        Origin = origin,
-      };
-      boardRef.Board.AddHost(host);
+      boardRef.Board = new() { ID = id };
+      boardRef.Board.AddHost(host, origin);
       boardRef.Board.DeserializeOnJoin(reader);
     }
 
