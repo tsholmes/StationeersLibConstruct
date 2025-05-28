@@ -88,6 +88,8 @@ namespace LibConstruct
     }
     public static MethodInfo PropertyGetter<T>(Expression<Func<T>> expr) => ((expr.Body as MemberExpression).Member as PropertyInfo).GetGetMethod();
 
+    public static FieldInfo Field<T>(Expression<Func<T>> expr) => (expr.Body as MemberExpression).Member as FieldInfo;
+
     public static T CreateDelegate<T>(this MethodInfo method) where T : Delegate => (T)method.CreateDelegate(typeof(T));
   }
 }

@@ -98,6 +98,8 @@ namespace LibConstruct
     // call this in OnDestroyed for each hosted board
     public static void OnDestroyedBoard<T>(IPlacementBoardHost host, BoardRef<T> boardRef) where T : PlacementBoard, new()
     {
+      if (boardRef == null)
+        return;
       boardRef.Board?.RemoveHost(host);
       boardRef.Board = null;
     }

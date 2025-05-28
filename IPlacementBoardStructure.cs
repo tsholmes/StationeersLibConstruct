@@ -37,6 +37,9 @@ namespace LibConstruct
       {
         if (cell == null)
           return CanConstructInfo.InvalidPlacement("overflows board bounds"); // TODO: localize
+        // if we are currently relocating, allow overlap with the relocating structure
+        if (PlacementBoard.IsRelocating && cell.Structure == PlacementBoard.RelocatingStructure)
+          continue;
         if (cell.Structure is Structure other)
           return CanConstructInfo.InvalidPlacement(GameStrings.PlacementBlockedByStructure.AsString(other.DisplayName));
       }
