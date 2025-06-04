@@ -6,7 +6,6 @@ using Assets.Scripts.GridSystem;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
-using UnityEngine;
 
 namespace LibConstruct
 {
@@ -128,8 +127,6 @@ namespace LibConstruct
       if (memberList.Count == 0)
         memberList.Add(start);
 
-      Debug.Log($"rebuilding network from {start.ReferenceId} {excludeStart} with members {string.Join(",", memberList.Select(m => m.ReferenceId))}");
-
       // run through each member and rebuild its network, skipping any included in networks we already rebuilt
       foreach (var member in memberList)
       {
@@ -138,13 +135,10 @@ namespace LibConstruct
         this.RebuildNetworkSingle(member, excludeStart ? start : default(T));
         visited.AddRange(member.Network.Members);
       }
-
-      Debug.Log($"total visited({visited.Count}) {string.Join(",", visited.Select(m => m.ReferenceId))}");
     }
 
     private void RebuildNetworkSingle(T start, T exclude)
     {
-      Debug.Log($"rebuilding single network from {start.ReferenceId} exclude {exclude?.ReferenceId}");
       // BFS walk connections from start
       var queue = new Queue<T>();
       queue.Enqueue(start);
@@ -175,7 +169,6 @@ namespace LibConstruct
           }
         }
       }
-      Debug.Log($"final members({members.Count}) {string.Join(",", members.Select(m => m.ReferenceId))}");
       // Send updates to all member lists
       foreach (var member in members)
         member.Network.ReplaceMembers(member, members);

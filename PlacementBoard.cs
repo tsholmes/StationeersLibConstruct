@@ -142,12 +142,15 @@ namespace LibConstruct
     {
       var action = new Thing.DelayedActionInstance
       {
-        ActionMessage = "Relocate", // TODO: localize,
+        ActionMessage = CustomGameStrings.BoardStructureRelocateAction,
         Duration = 0f,
         Selection = RelocatingCursor.GetAsThing.GetSelection(),
       };
       if (KeyManager.GetButtonDown(KeyMap.QuantityModifier))
         CursorRotation = (CursorRotation + 1) % 4;
+
+      if (CursorBoard != null && CursorBoard != RelocatingStructure.Board)
+        return action.Fail(CustomGameStrings.BoardStructureRelocateDifferentBoard);
 
       var canConstruct = RelocatingCursor.AsStructure.CanConstruct();
       if (!canConstruct.CanConstruct)
@@ -168,12 +171,10 @@ namespace LibConstruct
         return;
       }
 
-      var pointingAtBoard = CursorBoard == RelocatingStructure.Board;
-      RelocatingCursor.GetAsThing.gameObject.SetActive(pointingAtBoard);
+      RelocatingCursor.Board = CursorBoard;
+      RelocatingCursor.GetAsThing.gameObject.SetActive(CursorBoard != null);
 
-      RelocatingCursor.Board = pointingAtBoard ? RelocatingStructure.Board : null;
-
-      if (!pointingAtBoard)
+      if (CursorBoard == null)
         return;
 
       var rot = CursorBoard.OriginRotation * Quaternion.AngleAxis(90f * CursorRotation, Vector3.forward);

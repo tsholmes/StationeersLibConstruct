@@ -32,11 +32,11 @@ namespace LibConstruct
     // <custom construction checks>
     public static CanConstructInfo CanConstruct<T>(T structure) where T : Structure, IPlacementBoardStructure
     {
-      if (structure.Board == null) return CanConstructInfo.InvalidPlacement("must be placed on board"); // TODO: localize
+      if (structure.Board == null) return CanConstructInfo.InvalidPlacement(CustomGameStrings.BoardStructureNoBoard);
       foreach (var cell in structure.Board.BoundsCells(structure.Transform, structure.Bounds))
       {
         if (cell == null)
-          return CanConstructInfo.InvalidPlacement("overflows board bounds"); // TODO: localize
+          return CanConstructInfo.InvalidPlacement(CustomGameStrings.BoardStructureBoundsOverflow);
         // if we are currently relocating, allow overlap with the relocating structure
         if (PlacementBoard.IsRelocating && cell.Structure == PlacementBoard.RelocatingStructure)
           continue;
@@ -78,7 +78,5 @@ namespace LibConstruct
       var hostId = reader.ReadInt64();
       PlacementBoard.RegisterLoading(structure, boardId, hostId);
     }
-
-    // TODO: do we need BuildUpdate/ProcessUpdate?
   }
 }

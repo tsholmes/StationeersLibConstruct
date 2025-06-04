@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Language xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>English</Name>
+  <Code>EN</Code>
+  <Font>font_english</Font>
+  <GameStrings>
+    <Record>
+      <Key>BoardStructureRelocateAction</Key>
+      <Value>Relocate</Value>
+    </Record>
+    <Record>
+      <Key>BoardStructureRelocateDifferentBoard</Key>
+      <Value>Cannot relocate to a different board</Value>
+    </Record>
+    <Record>
+      <Key>BoardStructureRelocateNoBoard</Key>
+      <Value>Must be placed on board surface</Value>
+    </Record>
+    <Record>
+      <Key>BoardStructureBoundsOverflow</Key>
+      <Value>Cannot place outside board bounds</Value>
+    </Record>
+  </GameStrings>
+</Language>

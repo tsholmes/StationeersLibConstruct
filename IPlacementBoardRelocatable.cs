@@ -28,7 +28,7 @@ namespace LibConstruct
       var action = new Thing.DelayedActionInstance
       {
         Duration = 0f,
-        ActionMessage = "Relocate", // TODO: localize
+        ActionMessage = CustomGameStrings.BoardStructureRelocateAction,
       };
       if (doAction && PlacementBoard.RelocateMouseReleased)
         PlacementBoard.StartRelocate(structure, continueRelocating);

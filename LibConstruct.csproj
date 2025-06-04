@@ -73,15 +73,19 @@
     <Target Name="CopyToMods" AfterTargets="Build">
         <ItemGroup>
             <GameDataItems Include="$(ProjectDir)\GameData\**\*.*">
-                <DestFolder>GameData\%(RecursiveDir)</DestFolder>
+              <BasePath>GameData\</BasePath>
             </GameDataItems>
             <AboutItems Include="$(ProjectDir)\About\**\*.*">
-                <DestFolder>About\%(RecursiveDir)</DestFolder>
+              <BasePath>About\</BasePath>
             </AboutItems>
+            <DeepCopyItems Include="@(GameDataItems);@(AboutItems)" />
+            <DeepCopyWithDest Include="@(DeepCopyItems)">
+              <DestFolder>%(DeepCopyItems.BasePath)%(DeepCopyItems.RecursiveDir)</DestFolder>
+            </DeepCopyWithDest>
             <InfoFile Include="$(ProjectDir)\$(ModName).info" />
             <AssemblyFile Include="$(OutputPath)\$(ModName).dll" />
             <PdbFile Include="$(OutputPath)\$(ModName).pdb" Condition=" '$(Configuration)' == 'Debug' " />
-            <BaseAllCopyItems Include="@(GameDataItems);@(AboutItems);@(InfoFile);@(AssemblyFile);@(PdbFile)" />
+            <BaseAllCopyItems Include="@(DeepCopyWithDest);@(InfoFile);@(AssemblyFile);@(PdbFile)" />
             <AllCopyHasFolder Include="@(BaseAllCopyItems->HasMetadata('DestFolder'))" />
             <AllCopyNoFolder Include="@(BaseAllCopyItems)" Exclude="@(AllCopyHasFolder)">
               <DestFolder></DestFolder>
