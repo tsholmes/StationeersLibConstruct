@@ -56,7 +56,7 @@ namespace LibConstruct
         prefab,
         CursorBoard,
         CursorBoard.WorldToGrid(targetLocation),
-        targetRotation,
+        CursorBoard.RotationToIndex(targetRotation),
         steamId,
         authoringMode
       );
@@ -76,8 +76,8 @@ namespace LibConstruct
       if (!create.AuthoringMode && !create.Constructor.OnUseItem(entryQuantity, null))
         return;
 
-      var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.StructurePrefab, create.WorldPosition, create.Rotation);
-      structure.SetStructureData(create.Rotation, create.OwnerClientId, create.Position, create.CustomColor);
+      var structure = Thing.Create<IPlacementBoardStructure>((Structure)create.StructurePrefab, create.WorldPosition, create.WorldRotation);
+      structure.SetStructureData(create.WorldRotation, create.OwnerClientId, create.Position, create.CustomColor);
       create.Board.Register(structure);
     }
 

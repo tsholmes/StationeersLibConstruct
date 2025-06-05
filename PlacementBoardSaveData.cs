@@ -1,5 +1,6 @@
 
 using System.Xml.Serialization;
+using Assets.Scripts.GridSystem;
 using UnityEngine;
 
 namespace LibConstruct
@@ -35,5 +36,9 @@ namespace LibConstruct
     public long BoardId;
     [XmlElement]
     public long PrimaryHostId;
+    [XmlElement]
+    public Grid3 Position;
+    [XmlElement]
+    public int Rotation;
   }
 }

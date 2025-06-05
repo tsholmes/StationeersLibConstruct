@@ -13,7 +13,7 @@ namespace LibConstruct
     public PlacementBoard Board;
     public IPlacementBoardStructure StructurePrefab;
     public Grid3 Position;
-    public Quaternion Rotation;
+    public int Rotation;
     public int CustomColor = -1;
     public ulong OwnerClientId;
     public bool AuthoringMode;
@@ -23,7 +23,7 @@ namespace LibConstruct
       IPlacementBoardStructure prefabToCreate,
       PlacementBoard board,
       Grid3 position,
-      Quaternion rotation,
+      int rotation,
       ulong ownerClientId,
       bool authoringMode,
       int colorIndex = -1
@@ -54,6 +54,7 @@ namespace LibConstruct
     }
 
     public Vector3 WorldPosition => this.Board.GridToWorld(this.Position);
+    public Quaternion WorldRotation => this.Board.IndexToRotation(this.Rotation);
   }
 
   public class CreateBoardStructureMessage : ProcessedMessage<CreateBoardStructureMessage>
@@ -65,7 +66,7 @@ namespace LibConstruct
     public long BoardHostID;
     public int PrefabHash;
     public Grid3 Position;
-    public Quaternion Rotation;
+    public int Rotation;
     public int CustomColor;
     public ulong OwnerClientId;
     public bool AuthoringMode;
@@ -93,7 +94,7 @@ namespace LibConstruct
       this.BoardHostID = reader.ReadInt64();
       this.PrefabHash = reader.ReadInt32();
       this.Position = reader.ReadGrid3();
-      this.Rotation = reader.ReadQuaternion();
+      this.Rotation = reader.ReadSByte();
       this.CustomColor = reader.ReadInt32();
       this.OwnerClientId = reader.ReadUInt64();
       this.AuthoringMode = reader.ReadBoolean();
@@ -106,7 +107,7 @@ namespace LibConstruct
       writer.WriteInt64(this.BoardHostID);
       writer.WriteInt32(this.PrefabHash);
       writer.WriteGrid3(this.Position);
-      writer.WriteQuaternion(this.Rotation);
+      writer.WriteSByte((sbyte)this.Rotation);
       writer.WriteInt32(this.CustomColor);
       writer.WriteUInt64(this.OwnerClientId);
       writer.WriteBoolean(this.AuthoringMode);

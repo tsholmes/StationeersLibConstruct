@@ -51,32 +51,39 @@ namespace LibConstruct
       structure.Board.Deregister(structure);
     }
 
-    // TODO: should save data include Grid position & rotation angle, and just recalculate position+rotation on load?
     public static PlacementBoardStructureSaveData SerializeSave(IPlacementBoardStructure structure)
     {
       return new PlacementBoardStructureSaveData
       {
         BoardId = structure.Board.ID,
         PrimaryHostId = structure.Board.PrimaryHost.ReferenceId,
+        Position = structure.Board.WorldToGrid(structure.Transform.position),
+        Rotation = structure.Board.RotationToIndex(structure.Transform.rotation),
       };
     }
 
     public static void DeserializeSave(IPlacementBoardStructure structure, PlacementBoardStructureSaveData saveData)
     {
-      PlacementBoard.RegisterLoading(structure, saveData.BoardId, saveData.PrimaryHostId);
+      PlacementBoard.RegisterLoading(structure, saveData);
     }
 
     public static void SerializeOnJoin(RocketBinaryWriter writer, IPlacementBoardStructure structure)
     {
-      writer.WriteInt64(structure.Board.ID);
-      writer.WriteInt64(structure.Board.PrimaryHost.ReferenceId);
+      var data = SerializeSave(structure);
+      writer.WriteInt64(data.BoardId);
+      writer.WriteInt64(data.PrimaryHostId);
+      writer.WriteGrid3(data.Position);
+      writer.WriteSByte((sbyte)data.Rotation);
     }
 
     public static void DeserializeOnJoin(RocketBinaryReader reader, IPlacementBoardStructure structure)
     {
-      var boardId = reader.ReadInt64();
-      var hostId = reader.ReadInt64();
-      PlacementBoard.RegisterLoading(structure, boardId, hostId);
+      var data = new PlacementBoardStructureSaveData();
+      data.BoardId = reader.ReadInt64();
+      data.PrimaryHostId = reader.ReadInt64();
+      data.Position = reader.ReadGrid3();
+      data.Rotation = reader.ReadSByte();
+      PlacementBoard.RegisterLoading(structure, data);
     }
   }
 }

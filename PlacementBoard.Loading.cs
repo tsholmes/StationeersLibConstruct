@@ -8,6 +8,9 @@ namespace LibConstruct
   {
     public static bool Loading;
     private static Dictionary<long, IBoardRef> LoadingRefs = new();
+
+    private List<StructurePair> AwaitingRegister = new();
+
     public static BoardRef<T> LoadRef<T>(long id, long primaryHostId) where T : PlacementBoard, new()
     {
       if (!Loading)
@@ -35,18 +38,22 @@ namespace LibConstruct
       throw new Exception($"could not find PlacementBoard {id} on host {primaryHostId}");
     }
 
-    public static void RegisterLoading(IPlacementBoardStructure structure, long boardID, long primaryHostId)
+    public static void RegisterLoading(IPlacementBoardStructure structure, PlacementBoardStructureSaveData saveData)
     {
       if (Loading)
       {
         // board elements are ordered after the primary host so the ref should always be here
-        var iref = LoadingRefs[boardID];
-        iref.Board.AwaitingRegister.Add(structure);
+        var iref = LoadingRefs[saveData.BoardId];
+        iref.Board.AwaitingRegister.Add(new(structure, saveData));
       }
       else
       {
         // if we aren't loading, this is a newly created object on a client and we should just register it directly
-        var board = FindExisting(boardID, primaryHostId);
+        var board = FindExisting(saveData.BoardId, saveData.PrimaryHostId);
+        structure.Transform.SetPositionAndRotation(
+          board.GridToWorld(saveData.Position),
+          board.IndexToRotation(saveData.Rotation)
+        );
         board.Register(structure);
       }
     }
@@ -61,12 +68,38 @@ namespace LibConstruct
     {
       foreach (var iref in LoadingRefs.Values)
       {
-        foreach (var structure in iref.Board.AwaitingRegister)
-          iref.Board.Register(structure);
+        foreach (var (structure, saveData) in iref.Board.AwaitingRegister)
+        {
+          var board = iref.Board;
+          // update the position and rotation of the structure before registering
+          structure.Transform.SetPositionAndRotation(
+            board.GridToWorld(saveData.Position),
+            board.IndexToRotation(saveData.Rotation)
+          );
+
+          board.Register(structure);
+        }
         iref.Board.AwaitingRegister.Clear();
       }
       LoadingRefs.Clear();
       Loading = false;
+    }
+
+    private class StructurePair
+    {
+      public IPlacementBoardStructure Structure;
+      public PlacementBoardStructureSaveData SaveData;
+
+      public StructurePair(IPlacementBoardStructure structure, PlacementBoardStructureSaveData saveData)
+      {
+        this.Structure = structure;
+        this.SaveData = saveData;
+      }
+
+      public void Deconstruct(out IPlacementBoardStructure structure, out PlacementBoardStructureSaveData saveData)
+      {
+        (structure, saveData) = (this.Structure, this.SaveData);
+      }
     }
   }
 }

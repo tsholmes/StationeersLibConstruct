@@ -19,7 +19,6 @@ namespace LibConstruct
     public List<IPlacementBoardStructure> Structures = new();
     // use SortedDictionary since Grid3 doesn't hash well
     protected SortedDictionary<Grid3, BoardCell> Cells = new();
-    private List<IPlacementBoardStructure> AwaitingRegister = new();
     // ID is only used to remerge boards on load
     public long ID;
     public Vector3 PositionOffset = Vector3.zero;
@@ -149,8 +148,8 @@ namespace LibConstruct
       if (structure.Board != this || !this.Structures.Contains(structure))
         return;
       this.OnStructureDeregistered(structure);
-      foreach (var host in this.Hosts)
-        host.Host.OnBoardStructureDeregistered(this, structure);
+      foreach (var (host, _) in this.Hosts)
+        host.OnBoardStructureDeregistered(this, structure);
       foreach (var cell in structure.BoardCells)
         cell.Structure = null;
       structure.BoardCells = null;
@@ -222,6 +221,18 @@ namespace LibConstruct
       return this.OriginPosition + (vecGrid.x * right + vecGrid.y * up + vecGrid.z * forward) * this.GridSize;
     }
 
+    public int RotationToIndex(Quaternion rotation)
+    {
+      var relativeRot = rotation * Quaternion.Inverse(this.OriginRotation);
+      relativeRot.ToAngleAxis(out var relativeAngle, out _);
+      return Mathf.RoundToInt(relativeAngle / 90f);
+    }
+
+    public Quaternion IndexToRotation(int index)
+    {
+      return this.OriginRotation * Quaternion.AngleAxis(90f * index, Vector3.forward);
+    }
+
     public abstract IPlacementBoardStructure EquivalentStructure(Structure structure);
     public abstract float GridSize { get; }
 
@@ -256,6 +267,11 @@ namespace LibConstruct
       {
         this.Host = host;
         this.Origin = origin;
+      }
+
+      public void Deconstruct(out IPlacementBoardHost host, out Transform origin)
+      {
+        (host, origin) = (this.Host, this.Origin);
       }
     }
   }

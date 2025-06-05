@@ -80,7 +80,7 @@ namespace LibConstruct
         var rotOffset = RotationInput();
         currentRotation = (currentRotation + rotOffset + 4) % 4;
 
-        var rot = board.OriginRotation * Quaternion.AngleAxis(90 * (float)currentRotation, Vector3.forward);
+        var rot = board.IndexToRotation(currentRotation);
 
         PlacementBoard.PlacingOnBoard = true;
         boardCursor.Board = board;
@@ -88,7 +88,7 @@ namespace LibConstruct
           board.GridToWorld(PlacementBoard.CursorGrid),
           rot
         );
-        InventoryManager.CurrentRotation = cursor.ThingTransformRotation;
+        InventoryManager.CurrentRotation = rot;
         PlacementBoard.CursorRotation = currentRotation;
         return false;
       }

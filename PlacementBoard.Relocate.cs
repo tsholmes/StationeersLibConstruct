@@ -23,9 +23,7 @@ namespace LibConstruct
 
       var board = structure.Board;
       // convert rotation back to 0-3 rotation number so we start at the same rotation
-      var relativeRot = structure.Transform.rotation * Quaternion.Inverse(board.Origin.rotation);
-      relativeRot.ToAngleAxis(out var relativeAngle, out _);
-      CursorRotation = Mathf.RoundToInt(relativeAngle / 90f);
+      CursorRotation = board.RotationToIndex(structure.Transform.rotation);
 
       InventoryManagerPatch.constructionCursors.TryGetValue(structure.name, out var cursor);
       if (cursor is not IPlacementBoardRelocatable relocCursor)
@@ -79,7 +77,7 @@ namespace LibConstruct
       var board = structure.Board;
 
       var pos = board.GridToWorld(relocate.Position);
-      var rot = board.OriginRotation * Quaternion.AngleAxis(90f * relocate.Rotation, Vector3.forward);
+      var rot = board.IndexToRotation(relocate.Rotation);
 
       structure.Transform.SetPositionAndRotation(pos, rot);
 
@@ -122,10 +120,9 @@ namespace LibConstruct
       if (CursorBoard == null)
         return;
 
-      var rot = CursorBoard.OriginRotation * Quaternion.AngleAxis(90f * CursorRotation, Vector3.forward);
       RelocatingCursor.Transform.SetPositionAndRotation(
         CursorBoard.GridToWorld(CursorGrid),
-        rot
+        CursorBoard.IndexToRotation(CursorRotation)
       );
 
       var cursorStructure = RelocatingCursor.AsStructure;
