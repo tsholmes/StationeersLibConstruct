@@ -101,6 +101,14 @@ public void OnBoardStructureDeregistered(PlacementBoard board, IPlacementBoardSt
 In order for all the functionality to work properly, you must override various `Thing` methods and call the equivalent `BoardHostHooks` function for each hosted board.
 
 ```cs
+public override ThingSaveData SerializeSave()
+{
+  var saveData = new MyBoardHostSaveData();
+  var baseData = saveData as ThingSaveData;
+  this.InitialiseSavedata(ref baseData);
+  return saveData;
+}
+
 protected override void InitialiseSaveData(ref ThingSaveData baseData)
 {
   base.InitialiseSaveData(ref baseData);
@@ -147,10 +155,118 @@ public override void DeserializeOnJoin(RocketBinaryReader reader)
 ```
 
 ### Board Structure
-TODO: IPlacementBoardStructure
+A board structure is a prefab extending `Structure` that can (only) be built on a `PlacementBoard`. It must implement the [`IPlacementBoardStructure`](/IPlacementBoardStructure.cs) interface ([Example](https://github.com/tsholmes/StationeersExampleBoard/blob/master/Assets/Scripts/SmallLetter.cs)). These are again handled as an interface so you can extend any existing game class to use as a board structure.
 
-#### TODO: unity object setup
+The board structures are parented to the BoardOrigin transform with the z (blue) vector pointing in the same direction as the origin z vector, and can be rotated in 90 degree increments around the z vector. The local position relative to the BoardOrigin will always have the z component set to 0, and the xy components set to multiples of `PlacementBoard.GridSize`.
 
-#### TODO: interface methods
+In the `SaveData` for your board structure, add a `PlacementBoardStructureSaveData` field
+```cs
+public class MyBoardStructureSaveData : StructureSaveData
+{
+  [XmlElement]
+  public PlacementBoardStructureSaveData Board;
+}
+```
 
-#### TODO: hooks
+#### Interface methods
+
+`IPlacementBoardStructure.Board` holds a reference to the parent board
+```cs
+public PlacementBoard Board { get; set; }
+```
+`IPlacementBoardStructure.BoardCells` holds an array of board cells this device covers
+```cs
+public PlacementBoard.BoardCell[] BoardCells { get; set; }
+```
+The rest of the interface methods should be implemented by the base class you are extending, and shouldn't need an implementation
+```cs
+public Transform Transform { get; } // from Thing
+public string name { get; } // from UnityEngine.Object
+public void SetStructureData(...); // from Structure
+```
+
+#### Hooks
+In order for all the functionality to work properly, you must override various `Thing` methods and call the equivalent `BoardStructureHooks` function.
+
+```cs
+public override void Awake()
+{
+  base.Awake();
+  BoardStructureHooks.Awake(this);
+}
+
+public override CanConstructInfo CanConstruct()
+{
+  // no need to call the base method here since we don't use any builtin structure CanConstruct checks
+  return BoardStructureHooks.CanConstruct(this);
+}
+
+public override void OnDeregistered()
+{
+  base.OnDeregistered();
+  BoardStructureHooks.OnDeregistered(this);
+}
+
+public override ThingSaveData SerializeSave()
+{
+  var saveData = new MyBoardStructureSaveData();
+  var baseData = saveData as ThingSaveData;
+  this.InitialiseSaveData(ref baseData);
+  return saveData;
+}
+
+protected override void InitialiseSaveData(ref ThingSaveData baseData)
+{
+  base.InitialiseSaveData(baseData);
+  if (baseData is not MyBoardStructureSaveData saveData) return;
+  saveData.Board = BoardStructureHooks.SerializeSave(this);
+}
+
+public override void DeserializeSave(ThingSaveData baseData)
+{
+  base.DeserializeSave(baseData);
+  if (baseData is not MyBoardStructureSaveData saveData) return;
+  BoardStructureHooks.DeserializeSave(this, saveData.Board);
+}
+
+public override void SerializeOnJoin(RocketBinaryWriter writer)
+{
+  base.SerializeOnJoin(writer);
+  BoardStructureHooks.SerializeOnJoin(writer, this);
+}
+
+public override void DeserializeOnJoin(RocketBinaryReader reader)
+{
+  base.DeserializeOnJoin(reader);
+  BoardStructureHooks.DeserializeOnJoin(reader, this);
+}
+```
+
+### Relocatable Board Structure
+If you want board structures to be relocatable on the same board, your board structures must implement the `IPlacementBoardRelocatable` interface (which extends `IPlacementBoardStructure` so you don't need to list both).
+
+In addition to all the required implementation from `IPlacementBoardStructure`, you must also implement the interface methods and add a hook for starting the relocation.
+
+#### Interface methods
+
+`IPlacementBoardRelocatable.OnStructureRelocated` is called after a board structure is relocated to a new set of cells on the same board.
+```cs
+public void OnStructureRelocated() { }
+```
+The rest of the interface methods should be implemented automatically by the base class.
+```cs
+public Thing GetAsThing { get; } // from Thing
+public Structure AsStructure { get; } // from Structure
+```
+
+#### Hooks
+
+```cs
+public override DelayedActionInstance AttackWith(Attack attack, bool doAction = true)
+{
+  if (attack.SourceItem is Screwdriver tool) // you can use any tool here as the relocate tool
+    return BoardRelocateHooks.StructureAttackWith(
+      this, attack, doAction, BoardRelocateHooks.NormalToolRelocateContinue(tool));
+  return base.AttackWith(attack, doAction);
+}
+```
