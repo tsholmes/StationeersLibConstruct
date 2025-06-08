@@ -2,6 +2,13 @@
 
 A library for custom structure placement in Stationeers.
 
+- [Placement Board](#placement-board)
+  - [Board Surface](#board)
+  - [Board Host](#host)
+  - [Board Structure](#board-structure)
+  - [Relocatable Structure](#relocatable-board-structure)
+- [PsuedoNetwork](#pseudonetwork)
+
 ## Placement Board
 Placement Boards are surfaces that allow building structures on a custom 2D grid.
 The board can define structure replacements to have construction automatically switch from a regular small grid structure to the board equivalent.
@@ -268,5 +275,85 @@ public override DelayedActionInstance AttackWith(Attack attack, bool doAction = 
     return BoardRelocateHooks.StructureAttackWith(
       this, attack, doAction, BoardRelocateHooks.NormalToolRelocateContinue(tool));
   return base.AttackWith(attack, doAction);
+}
+```
+
+## PseudoNetwork
+A PseudoNetwork is a lightweight structure network equivalent that has holds no state except the list of members. It can be used to have a set of connected structures without the overhead of a full structure network. Each network type reserves a new connection type that will be used to connect members. Each type a network member structure is created or destroyed, it walks these connections to rebuild the member lists.
+
+In order to create a PseudoNetwork, first you must register a `PseudoNetworkType` with the type of the network members (which must implement `IPseudoNetworkMember`). This will select a `NetworkType` value to be used as the connection type.
+```cs
+public static PseudoNetworkType<MyNetworkMember> MyNetworkType = new();
+```
+
+Wherever you load in your prefabs that are network members, call `PseudoNetworkType.PatchConnections()` to set the proper connection type.
+```cs
+foreach (var gameObject in prefabs)
+{
+  if (gameObject.TryGetComponent<MyNetworkMember>(out var member))
+    MyNetworkMember.MyNetworkType.PatchConnections(member);
+  
+  // register prefab
+}
+```
+
+### Interface
+
+`IPseudoNetworkMember.Network` returns the network instance that this structure is a member of. This will be updated by the various hooks to contain the current list of members.
+```cs
+public PseudoNetwork<MyNetworkMember> Network { get; } = MyNetworkType.Join();
+```
+
+`IPseudoNetworkMember.Connections` returns an enumerable of connections that should be used to connect network members. It is recommended to set the connections to an otherwise unused type to easily find them.
+```cs
+public IEnumerable<Connection> Connections {
+  get {
+    foreach (var openEnd in this.OpenEnds)
+      // set connections to LandingPad type in unity to mark them for replacement with new connection type
+      if (openEnd.ConnectionType == NetworkType.LandingPad || openEnd.ConnectionType == MyNetworkType.ConnectionType)
+        yield return openEnd;
+  }
+}
+```
+
+`IPseudoNetworkMember.OnMemberAdded` is called when a new member is added to the network.
+`IPseudoNetworkMember.OnMemberRemoved` is called when a member is removed from the network.
+`IPseudoNetworkMember.OnMembersChanged` is called once after all `OnMemberAdded`/`OnMemberRemoved` hooks are called.
+
+If your structure is a member of multiple different types of networks, use explicit interface implementations for each type.
+
+```cs
+public interface INetworkMemberA : IPseudoNetworkMember<INetworkMemberA> { }
+public interface INetworkMemberB : IPseudoNetworkMember<INetworkMemberB> { }
+
+public class MyNetworkMember : Structure, INetworkMemberA, INetworkMemberB
+{
+  public static PseudoNetworkType<INetworkMemberA> NetworkTypeA = new();
+  public static PseudoNetworkType<INetworkMemberB> NetworkTypeB = new();
+
+  IEnumerable<Connection> INetworkMemberA.Network => NetworkTypeA.Join();
+  IEnumerable<Connection> INetworkMemberA.Connections => ...;
+
+  IEnumerable<Connection> INetworkMemberB.Network => NetworkTypeB.Join();
+  IEnumerable<Connection> INetworkMemberB.Connections => ...;
+}
+```
+
+### Hooks
+
+```cs
+public override void OnRegistered(Cell cell)
+{
+  base.OnRegistered(cell);
+
+  // each hook must be called once for each network type this is a member of
+  MyNetworkType.RebuildNetworkCreate(this);
+}
+
+public override void OnDeregistered()
+{
+  base.OnDeregistered();
+
+  MyNetworkType.RebuildNetworkDestroy(this);
 }
 ```
