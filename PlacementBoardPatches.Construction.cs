@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
+using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
@@ -148,6 +149,20 @@ namespace LibConstruct
         return false;
       }
       return true;
+    }
+  }
+
+  [HarmonyPatch(typeof(Structure))]
+  static partial class StructurePatch
+  {
+    [HarmonyPatch(nameof(Structure.GetLocalGrid)), HarmonyPostfix]
+    static void GetLocalGrid(Structure __instance, ref Grid3 __result)
+    {
+      if (!__instance.IsCursor || __instance is not IPlacementBoardStructure boardStructure)
+        return;
+
+      // if we are a cursor board structure, return the board grid position here so construction stops if we move
+      __result = boardStructure.Board.WorldToGrid(boardStructure.Transform.position);
     }
   }
 }

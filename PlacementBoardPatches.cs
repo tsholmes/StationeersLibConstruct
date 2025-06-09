@@ -43,7 +43,7 @@ namespace LibConstruct
   }
 
   [HarmonyPatch(typeof(Structure))]
-  static class StructurePatch
+  static partial class StructurePatch
   {
     [HarmonyPatch(nameof(Structure.OnAssignedReference)), HarmonyPrefix]
     static void OnAssignedReferencePrefix(Structure __instance, out Vector3 __state)
