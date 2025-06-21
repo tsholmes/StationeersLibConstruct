@@ -18,6 +18,7 @@ This requires BepInEx and a modloader installed. Try out [url=https://github.com
   </ChangeLog>
   <Tags>
   </Tags>
+  <WorkshopHandle>3505115682</WorkshopHandle>
   <Dependencies />
   <LoadBefore />
   <LoadAfter />
