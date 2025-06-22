@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Serialization;
 
 namespace LibConstruct
 {
@@ -10,6 +12,56 @@ namespace LibConstruct
     private static Dictionary<long, IBoardRef> LoadingRefs = new();
 
     private List<StructurePair> AwaitingRegister = new();
+
+    public static void RepairThingOrder(XmlSaveLoad.WorldData worldData)
+    {
+      IEnumerable<long> BoardIds(ThingSaveData thing)
+      {
+        if (thing == null)
+          yield break;
+        foreach (var field in thing.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy))
+        {
+          if (typeof(PlacementBoardHostSaveData).IsAssignableFrom(field.FieldType))
+          {
+            var boardData = field.GetValue(thing) as PlacementBoardHostSaveData;
+            if (boardData != null)
+              yield return boardData.BoardId;
+          }
+        }
+      }
+
+      var boardToThing = new Dictionary<long, ThingSaveData>();
+      foreach (var thing in worldData.OrderedThings)
+      {
+        foreach (var id in BoardIds(thing))
+          boardToThing[id] = thing;
+      }
+
+      var seenBoards = new HashSet<long>();
+      for (var i = 0; i < worldData.OrderedThings.Count; i++)
+      {
+        var thing = worldData.OrderedThings[i];
+        if (thing == null)
+          continue;
+        foreach (var id in BoardIds(thing))
+          seenBoards.Add(id);
+        foreach (var field in thing.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy))
+        {
+          if (!typeof(PlacementBoardStructureSaveData).IsAssignableFrom(field.FieldType))
+            continue;
+          if (field.GetValue(thing) is not PlacementBoardStructureSaveData boardData)
+            continue;
+          if (seenBoards.Contains(boardData.BoardId))
+            continue;
+          // if we get here, this is out of order
+          UnityEngine.Debug.LogWarning($"reordering board {boardData.BoardId}");
+          var boardThing = boardToThing[boardData.BoardId];
+          worldData.OrderedThings.Remove(boardThing);
+          worldData.OrderedThings.Insert(i, boardThing);
+          seenBoards.Add(boardData.BoardId);
+        }
+      }
+    }
 
     public static BoardRef<T> LoadRef<T>(long id, long primaryHostId) where T : PlacementBoard, new()
     {

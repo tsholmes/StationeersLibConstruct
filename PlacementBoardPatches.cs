@@ -140,6 +140,8 @@ namespace LibConstruct
     [HarmonyPatch("LoadInNetworks"), HarmonyPrefix]
     static void LoadInNetworks(XmlSaveLoad.WorldData worldData)
     {
+      if (LibConstructMod.RepairBoardLoadOrder.Value)
+        PlacementBoard.RepairThingOrder(worldData);
       PlacementBoard.StartLoad();
     }
 
@@ -155,7 +157,7 @@ namespace LibConstruct
     {
       return thing is IPlacementBoardStructure structure
         && structure.Board != null
-        && structure.Board.PrimaryHost == (parent as IPlacementBoardHost);
+        && structure.Board.PrimaryHost != (parent as IPlacementBoardHost);
     }
 
     [HarmonyPatch("AddToSave", typeof(Thing), typeof(XmlSaveLoad.WorldData), typeof(Thing)), HarmonyPrefix]
