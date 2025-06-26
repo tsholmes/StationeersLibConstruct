@@ -86,7 +86,7 @@ namespace LibConstruct
         cell.Structure = null;
 
       // register to new cells
-      var cells = board.BoundsCells(structure.Transform, structure.AsStructure.Bounds).ToArray();
+      var cells = board.ValidBoundsCells(structure.Transform, structure.AsStructure.Bounds).ToArray();
       foreach (var cell in cells)
         cell.Structure = structure;
       structure.BoardCells = cells;

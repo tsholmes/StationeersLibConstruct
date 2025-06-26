@@ -114,7 +114,7 @@ namespace LibConstruct
       this.Colliders.Remove(collider);
       BoardColliderLookup.Remove(collider);
       var toRemove = new HashSet<IPlacementBoardStructure>();
-      foreach (var cell in this.BoundsCells(collider.transform, ColliderLocalBounds(collider), false))
+      foreach (var cell in this.ValidBoundsCells(collider.transform, ColliderLocalBounds(collider)))
       {
         if (!cell.ColliderDeref())
         {
@@ -133,7 +133,7 @@ namespace LibConstruct
       var grid = this.WorldToGrid(boardStructure.Transform.position);
       boardStructure.Transform.SetParent(this.Origin);
       boardStructure.Transform.position = this.GridToWorld(grid);
-      var cells = this.BoundsCells(boardStructure.Transform, structure.Bounds).ToArray();
+      var cells = this.ValidBoundsCells(boardStructure.Transform, structure.Bounds).ToArray();
       foreach (var cell in cells)
         cell.Structure = boardStructure;
       boardStructure.BoardCells = cells;
@@ -182,6 +182,13 @@ namespace LibConstruct
           if (bounds.Contains(local))
             yield return grid;
         }
+    }
+
+    public IEnumerable<BoardCell> ValidBoundsCells(Transform transform, Bounds bounds)
+    {
+      foreach (var cell in this.BoundsCells(transform, bounds, create: false))
+        if (cell != null)
+          yield return cell;
     }
 
     public IEnumerable<BoardCell> BoundsCells(Transform transform, Bounds bounds, bool create = false)
