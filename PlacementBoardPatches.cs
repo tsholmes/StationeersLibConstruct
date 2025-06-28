@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
 using Assets.Scripts;
@@ -247,24 +248,6 @@ namespace LibConstruct
   [HarmonyPatch(typeof(MessageFactory))]
   static class MessageFactoryPatch
   {
-    // It would be better for StationeersMods to have a registry of custom message types
-    // so we don't have to worry about conflicting indices
-    [HarmonyPatch(nameof(MessageFactory.GetTypeFromIndex)), HarmonyPrefix]
-    static bool GetTypeFromIndex(byte index, ref Type __result)
-    {
-      if (index == CreateBoardStructureMessage.TypeIndex)
-      {
-        __result = typeof(CreateBoardStructureMessage);
-        return false;
-      }
-      else if (index == RelocateBoardStructureMessage.TypeIndex)
-      {
-        __result = typeof(RelocateBoardStructureMessage);
-        return false;
-      }
-      return true;
-    }
-
     [HarmonyPatch(nameof(MessageFactory.GetIndexFromType)), HarmonyPrefix]
     static bool GetIndexFromType(Type type, ref byte __result)
     {
@@ -279,6 +262,35 @@ namespace LibConstruct
         return false;
       }
       return true;
+    }
+  }
+
+  [HarmonyPatch(typeof(RocketBinaryReader))]
+  static class RocketBinaryReaderPatch
+  {
+    // we patch the read side differently because there is some strange interaction with other mods
+    // that patch NetworkBase.DeserializeReceivedData which causes a hard crash
+    [HarmonyPatch(nameof(RocketBinaryReader.ReadMessageType)), HarmonyTranspiler]
+    static IEnumerable<CodeInstruction> ReadMessageType(IEnumerable<CodeInstruction> instructions)
+    {
+      var matcher = new CodeMatcher(instructions);
+
+      matcher.MatchStartForward(CodeInstruction.Call(() => MessageFactory.GetTypeFromIndex(default)));
+      matcher.ThrowIfInvalid("failed to find replacement call for RocketBinaryReader.ReadMessageType");
+
+      matcher.RemoveInstruction();
+      matcher.InsertAndAdvance(CodeInstruction.Call(() => GetTypeFromIndex(default)));
+
+      return matcher.Instructions();
+    }
+
+    static Type GetTypeFromIndex(byte index)
+    {
+      if (index == CreateBoardStructureMessage.TypeIndex)
+        return typeof(CreateBoardStructureMessage);
+      else if (index == RelocateBoardStructureMessage.TypeIndex)
+        return typeof(RelocateBoardStructureMessage);
+      return MessageFactory.GetTypeFromIndex(index);
     }
   }
 
@@ -305,6 +317,50 @@ namespace LibConstruct
       matcher.InsertAndAdvance(new CodeInstruction(locOp));
       matcher.InsertAndAdvance(new CodeInstruction(OpCodes.Isinst, typeof(RelocateBoardStructureMessage)));
       matcher.InsertAndAdvance(new CodeInstruction(OpCodes.Brtrue_S, label));
+
+      return matcher.Instructions();
+    }
+  }
+
+  static class CompatibilityPatch
+  {
+    public static void RunPatch(Harmony harmony)
+    {
+      Type commsPatch = null;
+      foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+      {
+        commsPatch = assembly.GetType("BrainClock.PlayerComms.DeserializeReceivedDataPatch", false);
+        if (commsPatch != null)
+          break;
+      }
+      if (commsPatch == null)
+        return;
+
+      var method = commsPatch.GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic);
+      if (method == null)
+        return;
+
+      var transpiler = new HarmonyMethod(PatchUtils.Method(() => TranspilePlayerComms(default)));
+      harmony.Patch(method, transpiler: transpiler);
+    }
+
+    [HarmonyTranspiler]
+    static IEnumerable<CodeInstruction> TranspilePlayerComms(IEnumerable<CodeInstruction> instructions)
+    {
+      var matcher = new CodeMatcher(instructions);
+
+      matcher.MatchStartForward(new CodeInstruction(OpCodes.Newobj, PatchUtils.Constructor(() => new HashSet<Type>())));
+      if (matcher.IsValid)
+      {
+        matcher.Advance(1);
+        matcher.InsertAndAdvance(
+          new CodeInstruction(OpCodes.Dup), // dup hashset
+          new CodeInstruction(OpCodes.Ldtoken, typeof(RelocateBoardStructureMessage)),
+          CodeInstruction.Call(() => Type.GetTypeFromHandle(default)), // get message type
+          CodeInstruction.Call(() => default(HashSet<Type>).Add(default)), // add to set
+          new CodeInstruction(OpCodes.Pop) // discard result
+        );
+      }
 
       return matcher.Instructions();
     }

@@ -19,6 +19,10 @@ namespace LibConstruct
       var leftType = call.Object.Type;
       return leftType.GetMethods().First(m => m.GetBaseDefinition() == method.GetBaseDefinition()) ?? method;
     }
+
+    public static ConstructorInfo Constructor<T>(Expression<Func<T>> expr) =>
+      (expr.Body as NewExpression).Constructor;
+
     public static MethodInfo PropertyGetter<T>(Expression<Func<T>> expr) =>
       ((expr.Body as MemberExpression).Member as PropertyInfo).GetGetMethod();
 

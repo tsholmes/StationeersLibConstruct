@@ -16,7 +16,11 @@ namespace LibConstruct
       var harmony = new Harmony("LibConstruct");
       harmony.PatchAll();
 
-      WorldManager.OnGameDataLoaded += () => CanConstructPatch.RunPatch(harmony);
+      WorldManager.OnGameDataLoaded += () =>
+      {
+        CompatibilityPatch.RunPatch(harmony);
+        CanConstructPatch.RunPatch(harmony);
+      };
 
       RepairBoardLoadOrder = this.Config.Bind(
         new ConfigDefinition("Debug", "RepairBoardLoadOrder"),
