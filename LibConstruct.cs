@@ -4,7 +4,7 @@ using StationeersMods.Interface;
 
 namespace LibConstruct
 {
-  [StationeersMod("LibConstruct", "LibConstruct [StationeersLaunchPad]", "0.1.2")]
+  [StationeersMod("LibConstruct", "LibConstruct [StationeersLaunchPad]", "0.1.3")]
   class LibConstructMod : ModBehaviour
   {
     public static ConfigEntry<bool> RepairBoardLoadOrder;
