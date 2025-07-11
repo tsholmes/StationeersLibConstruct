@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
+using LaunchPadBooster.Networking;
 using UnityEngine;
 
 namespace LibConstruct
@@ -27,10 +28,8 @@ namespace LibConstruct
     }
   }
 
-  public class RelocateBoardStructureMessage : ProcessedMessage<RelocateBoardStructureMessage>
+  public class RelocateBoardStructureMessage : ModNetworkMessage<RelocateBoardStructureMessage>
   {
-    public const byte TypeIndex = 223;
-
     public long StructureId;
     public Grid3 Position;
     public int Rotation;

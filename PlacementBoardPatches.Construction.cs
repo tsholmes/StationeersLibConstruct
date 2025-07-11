@@ -6,6 +6,7 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using HarmonyLib;
+using LaunchPadBooster.Utils;
 using UnityEngine;
 
 namespace LibConstruct
@@ -28,9 +29,9 @@ namespace LibConstruct
     {
       var matcher = new CodeMatcher(instructions);
       matcher.MatchStartForward(
-        new CodeMatch(OpCodes.Ldsfld, PatchUtils.Field(() => InventoryManager.ConstructionCursor)),
-        new CodeMatch(OpCodes.Ldsfld, PatchUtils.Field(() => InventoryManager.ConstructionCursor)),
-        new CodeMatch(OpCodes.Callvirt, PatchUtils.PropertyGetter(() => default(Thing).ThingTransformPosition))
+        new CodeMatch(OpCodes.Ldsfld, ReflectionUtils.Field(() => InventoryManager.ConstructionCursor)),
+        new CodeMatch(OpCodes.Ldsfld, ReflectionUtils.Field(() => InventoryManager.ConstructionCursor)),
+        new CodeMatch(OpCodes.Callvirt, ReflectionUtils.PropertyGetter(() => default(Thing).ThingTransformPosition))
       );
       matcher.ThrowIfInvalid("could not find InventoryManager.PlacementMode insertion point");
       matcher.Insert(CodeInstruction.Call(() => PlacementModeBoardCheck()));

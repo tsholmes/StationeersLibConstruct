@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
+using LaunchPadBooster.Networking;
 using UnityEngine;
 
 namespace LibConstruct
@@ -57,10 +58,8 @@ namespace LibConstruct
     public Quaternion WorldRotation => this.Board.IndexToRotation(this.Rotation);
   }
 
-  public class CreateBoardStructureMessage : ProcessedMessage<CreateBoardStructureMessage>
+  public class CreateBoardStructureMessage : ModNetworkMessage<CreateBoardStructureMessage>
   {
-    public const byte TypeIndex = 222;
-
     public long ConstructorId;
     public long BoardID;
     public long BoardHostID;

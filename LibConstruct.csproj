@@ -65,8 +65,8 @@
             <HintPath>$(StationeersDirectory)\BepInEx\core\BepInEx.dll</HintPath>
             <Private>False</Private>
         </Reference>
-        <Reference Include="StationeersMods.Interface">
-            <HintPath>$(StationeersDirectory)\BepInEx\plugins\StationeersLaunchPad\StationeersMods.Interface.dll</HintPath>
+        <Reference Include="LaunchPadBooster">
+            <HintPath>$(StationeersDirectory)\BepInEx\plugins\StationeersLaunchPad\LaunchPadBooster.dll</HintPath>
             <Private>False</Private>
         </Reference>
     </ItemGroup>

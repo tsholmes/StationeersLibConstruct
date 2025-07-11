@@ -4,6 +4,7 @@ using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using HarmonyLib;
+using LaunchPadBooster.Utils;
 using UnityEngine;
 
 namespace LibConstruct
@@ -76,7 +77,7 @@ namespace LibConstruct
     static IEnumerable<CodeInstruction> UseItemComplete(IEnumerable<CodeInstruction> instructions)
     {
       var matcher = new CodeMatcher(instructions);
-      matcher.MatchStartForward(new CodeMatch(OpCodes.Ldfld, PatchUtils.Field(() => default(DynamicThing).AttackWithEvent)));
+      matcher.MatchStartForward(new CodeMatch(OpCodes.Ldfld, ReflectionUtils.Field(() => default(DynamicThing).AttackWithEvent)));
       matcher.RemoveInstruction();
       matcher.Insert(CodeInstruction.Call(() => GetAttackWithEvent(default)));
       return matcher.Instructions();

@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
+using LaunchPadBooster.Utils;
 
 namespace LibConstruct
 {
@@ -12,7 +13,7 @@ namespace LibConstruct
   {
     public static void RunPatch(Harmony harmony)
     {
-      var method = PatchUtils.Method(() => default(Device).CanConstruct());
+      var method = ReflectionUtils.Method(() => default(Device).CanConstruct());
       var patches = Harmony.GetPatchInfo(method);
 
       // patch the (transpiled) original and all prefix/postfix patch methods
@@ -23,7 +24,7 @@ namespace LibConstruct
         allMethods.AddRange(patches.Postfixes.Select(patch => patch.PatchMethod));
       }
 
-      var transpiler = new HarmonyMethod(PatchUtils.Method(() => Patch(default, default)));
+      var transpiler = new HarmonyMethod(ReflectionUtils.Method(() => Patch(default, default)));
 
       foreach (var targetMethod in allMethods)
       {
@@ -48,7 +49,7 @@ namespace LibConstruct
       var thisIndex = FindDeviceArg((MethodInfo)__originalMethod);
 
       var matcher = new CodeMatcher(instructions);
-      var connectedDevices = PatchUtils.Method(() => default(SmallGrid).ConnectedDevices());
+      var connectedDevices = ReflectionUtils.Method(() => default(SmallGrid).ConnectedDevices());
       var match = new CodeMatch(inst => inst.Calls(connectedDevices));
 
       // check for all instances of calling ConnectedDevices in case someone else patched it
