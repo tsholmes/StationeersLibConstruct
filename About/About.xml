@@ -2,19 +2,18 @@
 <ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>LibConstruct</Name>
   <Author>tom_is_unlucky</Author>
-  <Version>0.1.3</Version>
+  <Version>0.2.0</Version>
   <Description>[h1]LibConstruct[/h1]
 This is a library for custom placement in Stationeers. It does nothing on its own but provides functionality to other mods.
 
 [url=https://github.com/tsholmes/StationeersLibConstruct]Source on Github[/url]
-This requires BepInEx and a modloader installed. Try out [url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]. (also compatible with StationeersMods)
+This requires BepInEx and a [url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url] v0.2.x
   </Description>
   <!-- All contents of ChangeLog should be changed for each publication for Steam workshop page -->
   <ChangeLog>
-    [h3]Version 0.1.3[/h3]
+    [h3]Version 0.2.0[/h3]
     [list]
-    [*]Fix hard crash when loading with Player Communications mod
-    [*]Fix network patch incompatibility with Player Communications mod
+    [*]Update to use LaunchPadBooster for networking
     [/list]
   </ChangeLog>
   <Tags>
