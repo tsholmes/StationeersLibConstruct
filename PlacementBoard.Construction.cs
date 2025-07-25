@@ -4,7 +4,9 @@ using Assets.Scripts;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Items;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace LibConstruct
@@ -149,6 +151,9 @@ namespace LibConstruct
     // Destroys the list of structures
     public static void DestroyStructureList(List<IPlacementBoardStructure> removedStructures)
     {
+      // unparent the structures from the board so the gameobjects aren't destroyed when the parent is
+      foreach (var structure in removedStructures)
+        structure.Transform.SetParent(null);
       if (!GameManager.RunSimulation)
         return;
       foreach (var structure in removedStructures)

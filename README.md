@@ -144,8 +144,9 @@ public override OnRegistered(Cell cell)
 
 public override void OnDestroy()
 {
-  base.OnDestroy();
   BoardHostHooks.OnDestroyedBoard(this, this.BoardRef);
+  // IMPORTANT: OnDestroyedBoard must be called before base.OnDestroy
+  base.OnDestroy();
 }
 
 public override void SerializeOnJoin(RocketBinaryWriter writer)
