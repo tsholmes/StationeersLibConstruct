@@ -115,12 +115,13 @@ namespace LibConstruct
       }
       else
       {
+        var args = new object[1];
         var pool = typeof(GridController).GetField("AllStructuresPool", BindingFlags.Public | BindingFlags.Static).GetValue(null);
         var poolType = pool.GetType();
         var addMethod = poolType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
-        AddStructure = addMethod.CreateDelegate(typeof(Action<Structure>), pool) as Action<Structure>;
+        AddStructure = structure => { args[0] = structure; addMethod.Invoke(pool, args); args[0] = null; };
         var remMethod = poolType.GetMethod("Remove", BindingFlags.Instance | BindingFlags.Public);
-        RemoveStructure = remMethod.CreateDelegate(typeof(Action<Structure>), pool) as Action<Structure>;
+        RemoveStructure = structure => { args[0] = structure; remMethod.Invoke(pool, args); args[0] = null; };
       }
     }
 
