@@ -102,11 +102,33 @@ namespace LibConstruct
   [HarmonyPatch(typeof(GridController))]
   static class GridControllerPatch
   {
+    static Action<Structure> AddStructure;
+    static Action<Structure> RemoveStructure;
+
+    static GridControllerPatch()
+    {
+      var allStructures = typeof(GridController).GetField("AllStructures", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as List<Structure>;
+      if (allStructures != null)
+      {
+        AddStructure = allStructures.Add;
+        RemoveStructure = structure => allStructures.Remove(structure);
+      }
+      else
+      {
+        var pool = typeof(GridController).GetField("AllStructuresPool", BindingFlags.Public | BindingFlags.Static).GetValue(null);
+        var poolType = pool.GetType();
+        var addMethod = poolType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
+        AddStructure = addMethod.CreateDelegate(typeof(Action<Structure>), pool) as Action<Structure>;
+        var remMethod = poolType.GetMethod("Remove", BindingFlags.Instance | BindingFlags.Public);
+        RemoveStructure = remMethod.CreateDelegate(typeof(Action<Structure>), pool) as Action<Structure>;
+      }
+    }
+
     [HarmonyPatch(nameof(GridController.Register)), HarmonyPrefix]
     static bool Register(Structure structure)
     {
       if (structure is not IPlacementBoardStructure) return true;
-      GridController.AllStructures.Add(structure);
+      AddStructure(structure);
       structure.OnRegistered(null);
       return false;
     }
@@ -116,7 +138,7 @@ namespace LibConstruct
     {
       if (structure is not IPlacementBoardStructure)
         return true;
-      GridController.AllStructures.Remove(structure);
+      RemoveStructure(structure);
       structure.OnDeregistered();
       return false;
     }
