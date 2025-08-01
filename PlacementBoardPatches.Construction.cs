@@ -133,11 +133,16 @@ namespace LibConstruct
       return offset;
     }
 
+    static FieldInfo SpawnPrefabField;
+
     [HarmonyPatch("UsePrimaryComplete"), HarmonyPrefix]
     static bool UsePrimaryComplete(InventoryManager __instance)
     {
       if (PlacementBoard.PlacingOnBoard && __instance.ConstructionPanel.IsVisible)
       {
+        if (SpawnPrefabField == null)
+          SpawnPrefabField = typeof(InventoryManager).GetField("SpawnPrefab", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
         PlacementBoard.UseMultiConstructorBoard(
           InventoryManager.Parent,
           __instance.ActiveHand.SlotId,
@@ -145,7 +150,7 @@ namespace LibConstruct
           InventoryManager.ConstructionCursor.ThingTransformRotation,
           InventoryManager.IsAuthoringMode,
           InventoryManager.ParentBrain.ClientId,
-          InventoryManager.SpawnPrefab
+          SpawnPrefabField.GetValue(null) as Thing
         );
         return false;
       }
