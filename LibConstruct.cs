@@ -12,7 +12,7 @@ namespace LibConstruct
   {
     public const string PluginGuid = "LibConstruct";
     public const string PluginName = "LibConstruct [StationeersLaunchPad]";
-    public const string PluginVersion = "0.2.3";
+    public const string PluginVersion = "0.2.4";
 
     public static Mod MOD = new(PluginGuid, PluginVersion);
 
