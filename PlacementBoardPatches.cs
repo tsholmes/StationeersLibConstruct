@@ -196,14 +196,18 @@ namespace LibConstruct
   [HarmonyPatch(typeof(SharedDLCManager))]
   static class SharedDLCManagerPatch
   {
-    [HarmonyPatch(nameof(SharedDLCManager.HostFinishedLoad)), HarmonyPostfix]
-    static void HostFinishedLoad()
+    [HarmonyPatch(nameof(SharedDLCManager.ClientFinishedLoad)), HarmonyPostfix]
+    static void ClientFinishedLoad()
     {
       PlacementBoard.FinishLoad();
     }
+  }
 
-    [HarmonyPatch(nameof(SharedDLCManager.ClientFinishedLoad)), HarmonyPostfix]
-    static void ClientFinishedLoad()
+  [HarmonyPatch(typeof(World))]
+  static class WorldPatch
+  {
+    [HarmonyPatch(nameof(World.OnLoadingFinished)), HarmonyPrefix]
+    static void OnLoadingFinished()
     {
       PlacementBoard.FinishLoad();
     }
