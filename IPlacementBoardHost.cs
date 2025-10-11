@@ -1,4 +1,5 @@
 
+using System;
 using System.Collections.Generic;
 using Assets.Scripts;
 using Assets.Scripts.GridSystem;
@@ -89,7 +90,7 @@ namespace LibConstruct
     // call this in OnRegistered for each hosted board
     public static void OnRegisteredBoard<T>(IPlacementBoardHost host, ref BoardRef<T> boardRef, Transform origin) where T : PlacementBoard, new()
     {
-      if (GameManager.GameState == GameState.Loading || GameManager.GameState == GameState.Joining)
+      if (GameManager.GameState == GameState.Loading || NetworkManager.IsClient)
         return;
       boardRef = new BoardRef<T> { Board = new() };
       boardRef.Board.AddHost(host, origin);
