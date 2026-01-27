@@ -68,7 +68,7 @@ namespace LibConstruct
       if (GameManager.RunSimulation)
         CreateBoardStructure(create);
       else
-        NetworkClient.SendToServer(new CreateBoardStructureMessage(create));
+        new CreateBoardStructureMessage(create).SendToServer();
     }
 
     public static void CreateBoardStructure(CreateBoardStructureInstance create)
