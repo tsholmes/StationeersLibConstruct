@@ -92,6 +92,7 @@ namespace LibConstruct
       structure.BoardCells = cells;
 
       // update structure registration so it saves in the right spot
+      structure.AsStructure.Position = pos;
       structure.AsStructure.RegisteredPosition = pos;
       structure.AsStructure.RegisteredRotation = rot;
 
