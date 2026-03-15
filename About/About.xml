@@ -2,7 +2,8 @@
 <ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>LibConstruct</Name>
   <Author>tom_is_unlucky</Author>
-  <Version>0.2.7</Version>
+  <Version>0.2.8</Version>
+  <ModID>LibConstruct</ModID>
   <Description>[h1]LibConstruct[/h1]
 This is a library for custom placement in Stationeers. It does nothing on its own but provides functionality to other mods.
 
@@ -13,9 +14,9 @@ This requires BepInEx and [url=https://github.com/StationeersLaunchPad/Stationee
   </Description>
   <!-- All contents of ChangeLog should be changed for each publication for Steam workshop page -->
   <ChangeLog>
-    [h3]Version 0.2.7[/h3]
+    [h3]Version 0.2.8[/h3]
     [list]
-    [*]Fix board construction not working on multiplayer clients
+    [*]Fix multiplayer clients got wrong position of recently moved board structures on join
     [/list]
   </ChangeLog>
   <Tags>

@@ -1,25 +1,21 @@
-﻿using System.Collections.Generic;
-using BepInEx;
-using BepInEx.Configuration;
+﻿using BepInEx.Configuration;
 using HarmonyLib;
 using LaunchPadBooster;
 using UnityEngine;
 
 namespace LibConstruct
 {
-  [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-  class LibConstructMod : BaseUnityPlugin
+  class LibConstructMod : MonoBehaviour
   {
-    public const string PluginGuid = "LibConstruct";
-    public const string PluginName = "LibConstruct [StationeersLaunchPad]";
-    public const string PluginVersion = "0.2.7";
-
-    public static Mod MOD = new(PluginGuid, PluginVersion);
+    public const string ModID = "LibConstruct";
+    public static Mod MOD;
 
     public static ConfigEntry<bool> RepairBoardLoadOrder;
 
-    public void OnLoaded(List<GameObject> prefabs)
+    public void OnLoaded(ConfigFile config, ModData mod)
     {
+      var about = mod.GetAboutData();
+      MOD = new(ModID, about.Version);
       // add these types in case implementers try to save lists of them
       MOD.AddSaveDataType<PlacementBoardHostSaveData>();
       MOD.AddSaveDataType<PlacementBoardSaveData>();
@@ -28,12 +24,12 @@ namespace LibConstruct
       MOD.RegisterNetworkMessage<CreateBoardStructureMessage>();
       MOD.RegisterNetworkMessage<RelocateBoardStructureMessage>();
 
-      var harmony = new Harmony(PluginGuid);
+      var harmony = new Harmony(ModID);
       harmony.PatchAll();
 
       WorldManager.OnGameDataLoaded += () => CanConstructPatch.RunPatch(harmony);
 
-      RepairBoardLoadOrder = this.Config.Bind(
+      RepairBoardLoadOrder = config.Bind(
         new ConfigDefinition("Debug", "RepairBoardLoadOrder"),
         false,
         new ConfigDescription(
