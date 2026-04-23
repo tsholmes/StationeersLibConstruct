@@ -21,8 +21,10 @@ namespace LibConstruct
       MOD.AddSaveDataType<PlacementBoardSaveData>();
       MOD.AddSaveDataType<PlacementBoardStructureSaveData>();
 
-      MOD.RegisterNetworkMessage<CreateBoardStructureMessage>();
-      MOD.RegisterNetworkMessage<RelocateBoardStructureMessage>();
+      MOD.Networking.RegisterLegacyMessage<CreateBoardStructureMessage>();
+      MOD.Networking.RegisterLegacyMessage<RelocateBoardStructureMessage>();
+
+      MOD.Networking.Required = true;
 
       var harmony = new Harmony(ModID);
       harmony.PatchAll();
