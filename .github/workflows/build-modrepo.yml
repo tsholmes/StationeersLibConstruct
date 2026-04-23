@@ -1,0 +1,17 @@
+# GitHub Workflow
+# .github/workflows/build-modrepo.yml
+name: Build modrepo
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published, edited]
+
+jobs:
+  build-modrepo:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Build and publish modrepo.xml
+        uses: StationeersLaunchPad/modrepo-builder-action@v1
