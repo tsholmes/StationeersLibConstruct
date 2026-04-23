@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModRepo
+  >
+  <ModVersion
+      ModID="LibConstruct"
+      Version="0.2.8"
+      Name="LibConstruct"
+      Author="tom_is_unlucky"
+      Url="https://github.com/tsholmes/StationeersLibConstruct/releases/download/v0.2.8/LibConstruct-v0.2.8.zip"
+      Digest="sha256:b2cd765da51e5ebb757231736900180139e048a6177a265ef1f616f9f8c64c2d"
+  />
+</ModRepo
+>
