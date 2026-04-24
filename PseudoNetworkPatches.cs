@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Reflection.Emit;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
@@ -47,22 +46,21 @@ static class CanConstructPatch
     var thisIndex = FindDeviceArg((MethodInfo)__originalMethod);
 
     var matcher = new CodeMatcher(instructions);
-    var connectedDevices = ReflectionUtils.Method(() => default(SmallGrid).ConnectedDevices());
-    var match = new CodeMatch(inst => inst.Calls(connectedDevices));
+    var fillConnected = typeof(SmallGrid).GetMethods().First(
+      m => m.Name is nameof(SmallGrid.FillConnected) && m.IsGenericMethodDefinition
+    ).MakeGenericMethod(typeof(Device));
+    var match = new CodeMatch(inst => inst.Calls(fillConnected));
+    var pseudoFillConnected = typeof(PseudoNetworks).GetMethod(nameof(PseudoNetworks.FillConnectedDevices));
 
-    // check for all instances of calling ConnectedDevices in case someone else patched it
+    // check for all instances of calling FillConnections in case someone else patched it
     while (true && thisIndex != -1)
     {
       matcher.MatchEndForward(match);
       if (!matcher.IsValid) break;
 
-      // insert a call to RemovePseudoConnected immediately after the call to ConnectedDevices
-      // that will return a new list that gets assigned to the local and used later
+      // replace with call to RemovePseudoConnected to filter out networked devices
+      matcher.Operand = pseudoFillConnected;
       matcher.Advance(1);
-      matcher.InsertAndAdvance(
-        new CodeInstruction(OpCodes.Ldarg_S, thisIndex), // this
-        CodeInstruction.Call(() => PseudoNetworks.RemovePseudoConnected(default, default))
-      );
     }
 
     return matcher.Instructions();

@@ -21,8 +21,8 @@ class LibConstructMod : MonoBehaviour
     MOD.AddSaveDataType<PlacementBoardSaveData>();
     MOD.AddSaveDataType<PlacementBoardStructureSaveData>();
 
-    MOD.Networking.RegisterLegacyMessage<CreateBoardStructureMessage>();
-    MOD.Networking.RegisterLegacyMessage<RelocateBoardStructureMessage>();
+    MOD.Networking.RegisterMessage<CreateBoardStructureMessage>();
+    MOD.Networking.RegisterMessage<RelocateBoardStructureMessage>();
 
     MOD.Networking.Required = true;
 

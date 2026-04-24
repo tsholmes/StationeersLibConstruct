@@ -5,6 +5,7 @@ using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Items;
+using LaunchPadBooster.Networking;
 using UnityEngine;
 
 namespace LibConstruct;
@@ -66,7 +67,7 @@ public abstract partial class PlacementBoard
     if (GameManager.RunSimulation)
       CreateBoardStructure(create);
     else
-      new CreateBoardStructureMessage(create).SendToServer();
+      new CreateBoardStructureMessage(create).SendToHost();
   }
 
   public static void CreateBoardStructure(CreateBoardStructureInstance create)

@@ -1,5 +1,4 @@
 
-using System.Collections.Generic;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
@@ -57,7 +56,7 @@ public class CreateBoardStructureInstance
   public Quaternion WorldRotation => Board.IndexToRotation(Rotation);
 }
 
-public class CreateBoardStructureMessage : ModNetworkMessage<CreateBoardStructureMessage>
+public class CreateBoardStructureMessage : INetworkMessage
 {
   public long ConstructorId;
   public long BoardID;
@@ -85,7 +84,7 @@ public class CreateBoardStructureMessage : ModNetworkMessage<CreateBoardStructur
     AuthoringMode = create.AuthoringMode;
   }
 
-  public override void Deserialize(RocketBinaryReader reader)
+  public void Deserialize(RocketBinaryReader reader)
   {
     ConstructorId = reader.ReadInt64();
     BoardID = reader.ReadInt64();
@@ -98,7 +97,7 @@ public class CreateBoardStructureMessage : ModNetworkMessage<CreateBoardStructur
     AuthoringMode = reader.ReadBoolean();
   }
 
-  public override void Serialize(RocketBinaryWriter writer)
+  public void Serialize(RocketBinaryWriter writer)
   {
     writer.WriteInt64(ConstructorId);
     writer.WriteInt64(BoardID);
@@ -111,22 +110,13 @@ public class CreateBoardStructureMessage : ModNetworkMessage<CreateBoardStructur
     writer.WriteBoolean(AuthoringMode);
   }
 
-  public override void Process(long hostId)
+  public void Process(long clientId)
   {
-    base.Process(hostId);
-
     var constructor = AuthoringMode ?
       Prefab.Find<MultiConstructor>((int)ConstructorId) :
       Thing.Find<MultiConstructor>(ConstructorId);
     var host = Thing.Find<IPlacementBoardHost>(BoardHostID);
-    if (constructor == null || host == null)
-    {
-      var ids = new List<long> { BoardHostID };
-      if (!AuthoringMode)
-        ids.Add(ConstructorId);
-      WaitUntilFound(hostId, Process, Process, ids, 3f, "CreateBoardStructure", true);
-    }
-    else
+    if (constructor != null && host != null)
       PlacementBoard.CreateBoardStructure(new CreateBoardStructureInstance(this));
   }
 }

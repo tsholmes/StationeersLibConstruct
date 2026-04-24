@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
@@ -27,7 +26,7 @@ public class RelocateBoardStructureInstance
   }
 }
 
-public class RelocateBoardStructureMessage : ModNetworkMessage<RelocateBoardStructureMessage>
+public class RelocateBoardStructureMessage : INetworkMessage
 {
   public long StructureId;
   public Grid3 Position;
@@ -42,31 +41,24 @@ public class RelocateBoardStructureMessage : ModNetworkMessage<RelocateBoardStru
     Rotation = relocate.Rotation;
   }
 
-  public override void Deserialize(RocketBinaryReader reader)
+  public void Deserialize(RocketBinaryReader reader)
   {
     StructureId = reader.ReadInt64();
     Position = reader.ReadGrid3();
     Rotation = reader.ReadByte();
   }
 
-  public override void Serialize(RocketBinaryWriter writer)
+  public void Serialize(RocketBinaryWriter writer)
   {
     writer.WriteInt64(StructureId);
     writer.WriteGrid3(Position);
     writer.WriteByte((byte)Rotation);
   }
 
-  public override void Process(long hostId)
+  public void Process(long clientId)
   {
-    base.Process(hostId);
-
     var structure = Thing.Find<IPlacementBoardRelocatable>(StructureId);
-    if (structure == null)
-    {
-      var ids = new List<long> { StructureId };
-      WaitUntilFound(hostId, Process, Process, ids, 3f, "RelocateBoardStructure", true);
-    }
-    else
+    if (structure != null)
       PlacementBoard.RelocateBoardStructure(new RelocateBoardStructureInstance(this));
   }
 }

@@ -59,31 +59,33 @@ internal static class PseudoNetworks
     return NextNetworkType();
   }
 
-  public static List<Device> RemovePseudoConnected(List<Device> connectedDevices, Device device)
+  public static void FillConnectedDevices(Device device, Span<SmallCellRef> connected, ref int count)
   {
-    for (var i = connectedDevices.Count - 1; i >= 0; i--)
+    device.FillConnected<Device>(connected, ref count);
+    var prevCount = count;
+    count = 0;
+    for (var i = 0; i < prevCount; i++)
     {
-      var connected = connectedDevices[i];
-      var keep = true;
-      foreach (var (memberType, getConnections) in _connectionGetters)
-      {
-        if (!memberType.IsAssignableFrom(device.GetType()) || !memberType.IsAssignableFrom(connected.GetType()))
-          continue;
-        // if both devices implement the same member interface, check the connections for matches
-        foreach (var conn in getConnections(device))
-        {
-          if (connected.IsConnected(conn))
-          {
-            keep = false;
-            break;
-          }
-        }
-        if (!keep) break;
-      }
-      if (!keep)
-        connectedDevices.RemoveAt(i);
+      var cell = connected[i];
+      if (!cell.TryGet(out Device other) || !ShouldExclude(device, other))
+        connected[count++] = cell;
     }
-    return connectedDevices;
+  }
+
+  private static bool ShouldExclude(Device device, Device other)
+  {
+    foreach (var (memberType, getConnections) in _connectionGetters)
+    {
+      if (!memberType.IsAssignableFrom(device.GetType()) || !memberType.IsAssignableFrom(other.GetType()))
+        continue;
+      // if both devices implement the same member interface, check the connections for matches
+      foreach (var conn in getConnections(device))
+      {
+        if (other.IsConnected(conn))
+          return true;
+      }
+    }
+    return false;
   }
 }
 

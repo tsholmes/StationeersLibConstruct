@@ -3,6 +3,7 @@ using System.Linq;
 using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using LaunchPadBooster.Networking;
 using UnityEngine;
 
 namespace LibConstruct;
@@ -66,7 +67,7 @@ public abstract partial class PlacementBoard
     else
     {
       // on a client we just send the message to the server and actually perform the relocate when it echoes it back
-      new RelocateBoardStructureMessage(relocate).SendToServer();
+      new RelocateBoardStructureMessage(relocate).SendToHost();
     }
   }
 
@@ -99,7 +100,7 @@ public abstract partial class PlacementBoard
     structure.OnStructureRelocated();
 
     if (GameManager.RunSimulation && NetworkServer.HasClients())
-      new RelocateBoardStructureMessage(relocate).SendToClients();
+      new RelocateBoardStructureMessage(relocate).SendAll(-1);
   }
 
   private static void UpdateRelocation()
