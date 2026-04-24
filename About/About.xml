@@ -2,21 +2,23 @@
 <ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>LibConstruct</Name>
   <Author>tom_is_unlucky</Author>
-  <Version>0.2.8</Version>
+  <Version>0.2.9-beta</Version>
   <ModID>LibConstruct</ModID>
+  <Branch>beta</Branch>
   <Description>[h1]LibConstruct[/h1]
-This is a library for custom placement in Stationeers. It does nothing on its own but provides functionality to other mods.
+    This is a library for custom placement in Stationeers. It does nothing on its own but provides functionality to other mods.
 
-Currently this provides the board surface placement and base piece connections in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3505169479]Modular Consoles[/url].
+    Currently this provides the board surface placement and base piece connections in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3505169479]Modular Consoles[/url].
 
-[url=https://github.com/tsholmes/StationeersLibConstruct]Source on Github[/url]
-This requires BepInEx and [url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url] v0.2.x
+    [url=https://github.com/tsholmes/StationeersLibConstruct]Source on Github[/url]
+    This requires BepInEx v5.4 and [url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url] v0.3.1 or later
   </Description>
   <!-- All contents of ChangeLog should be changed for each publication for Steam workshop page -->
   <ChangeLog>
-    [h3]Version 0.2.8[/h3]
+    [h3]Version 0.2.9-beta[/h3]
     [list]
-    [*]Fix multiplayer clients got wrong position of recently moved board structures on join
+    [*]Fix for beta changes
+    [*]Update to LaunchPadBooster networking v2
     [/list]
   </ChangeLog>
   <Tags>
