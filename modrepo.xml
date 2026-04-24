@@ -3,6 +3,19 @@
   >
   <ModVersion
       ModID="LibConstruct"
+      Version="0.2.9-beta"
+      Name="LibConstruct"
+      Author="tom_is_unlucky"
+      Url="https://github.com/tsholmes/StationeersLibConstruct/releases/download/v0.2.9-beta/LibConstruct-v0.2.9-beta.zip"
+      Digest="sha256:83572cdf98c9771d7b99e23080f4c3e805888f8114a6939186eae2ba039d27ec"
+    >
+    <Branch
+        Value="beta"
+    />
+  </ModVersion
+  >
+  <ModVersion
+      ModID="LibConstruct"
       Version="0.2.8"
       Name="LibConstruct"
       Author="tom_is_unlucky"

@@ -1,4 +1,17 @@
 {
+    "sha256:83572cdf98c9771d7b99e23080f4c3e805888f8114a6939186eae2ba039d27ec": {
+        "author": "tom_is_unlucky",
+        "branch": [
+            "beta"
+        ],
+        "depends_on": [],
+        "digest": "sha256:83572cdf98c9771d7b99e23080f4c3e805888f8114a6939186eae2ba039d27ec",
+        "id": "LibConstruct",
+        "name": "LibConstruct",
+        "tag": [],
+        "url": "https://github.com/tsholmes/StationeersLibConstruct/releases/download/v0.2.9-beta/LibConstruct-v0.2.9-beta.zip",
+        "version": "0.2.9-beta"
+    },
     "sha256:b2cd765da51e5ebb757231736900180139e048a6177a265ef1f616f9f8c64c2d": {
         "author": "tom_is_unlucky",
         "branch": [],
